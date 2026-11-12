@@ -52,6 +52,8 @@ button{cursor:pointer}
 .ax{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
 .ax span{position:absolute;font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.9),0 0 1px #000;white-space:nowrap}
 .zw.z #ch text{display:none}
+.zw.z #ch path,.zw.z #ch line,.zw.z #ch circle{vector-effect:non-scaling-stroke}
+.pn[hidden]{display:none}
 .zw.z{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #cvw{aspect-ratio:600/606}
 #mapw{aspect-ratio:2/1;border-radius:10px}
@@ -105,7 +107,7 @@ svg text{font-size:12px;fill:var(--sub);font-family:inherit}
   <div class="mapsheet" id="mapsheet"><div class="zw" id="mapw"><svg id="mapsvg" viewBox="0 0 360 180"></svg></div><div class="mrow"><div class="read">지도를 누르면 그 좌표로 이동해요. 점을 누르면 그 도시로 이동해요.</div><button class="dstb" id="dstb" hidden></button></div><div class="mtip" id="mtip" hidden></div><div class="mzl" id="mzl" hidden></div><div class="read" id="locnote" hidden></div></div>
   <div class="hero"><div class="lab" id="lab"></div><div class="big" id="cd"></div><div class="note" id="note"></div></div>
   <div class="cvo"><div class="zw" id="cvw"><div class="cv"><canvas id="cv"></canvas><svg id="ch" viewBox="0 0 600 606"></svg><div class="tip" id="tip" hidden></div></div></div><div class="ax" id="ax"></div></div>
-  <input type="range" class="pn" id="pn" min="0" max="732" step="1" value="366" aria-label="그래프 좌우 이동">
+  <input type="range" class="pn" id="pn" hidden min="0" max="732" step="1" value="366" aria-label="그래프 좌우 이동">
   <div class="read" id="rdo"></div>
   <div class="sheet" id="sheet">
     <button class="hdl" id="hdl" aria-label="자세히 열기 또는 닫기"></button>
@@ -227,13 +229,13 @@ function build(){
   const pr=seg("rise"),ps=seg("set");
   h+=`<path d="${pr}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="5"/><path d="${ps}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="5"/>`;
   h+=`<path d="${pr}" fill="none" stroke="${RISE}" stroke-width="2.5"/><path d="${ps}" fill="none" stroke="${SET}" stroke-width="2.5"/>`;
-  ext.forEach(m=>{const x=m.i*ppd,y=Yy(w24(m.val));h+=`<path d="M${x} ${y-7}L${x+7} ${y}L${x} ${y+7}L${x-7} ${y}Z" fill="#fff" stroke="${m.k==="rise"?RISE:SET}" stroke-width="2.5"/>`});
+  ext.forEach(m=>{const x=m.i*ppd,y=Yy(w24(m.val));h+=`<path class="dm" data-x="${x}" data-y="${y}" transform="translate(${x} ${y})" d="M0 -7L7 0L0 7L-7 0Z" fill="#fff" stroke="${m.k==="rise"?RISE:SET}" stroke-width="2.5"/>`});
   h+=`<g id="sg"><line id="s1" y1="${mt}" y2="${H-mb}" stroke="rgba(0,0,0,.35)" stroke-width="4"/><line id="s2" y1="${mt}" y2="${H-mb}" stroke="#ffe08a" stroke-width="2" stroke-dasharray="2 4"/><text id="sT" text-anchor="middle" y="${mt-7}" style="font-weight:700;fill:var(--text)"></text></g>`;
   h+=`<g id="pkg" display="none" style="pointer-events:none"><line id="pkh" x1="0" x2="${N*ppd}" stroke="#fff" stroke-opacity=".8" stroke-dasharray="3 4"/><circle id="pkr" r="6" fill="rgba(0,0,0,.3)" stroke="#fff" stroke-width="2.5"/></g>`;
   h+=`<g id="tg" style="pointer-events:none"><line id="t1" y1="${mt}" y2="${H-mb}" stroke="rgba(0,0,0,.4)" stroke-width="4"/><line id="t2" y1="${mt}" y2="${H-mb}" stroke="#fff" stroke-width="2" stroke-dasharray="5 4"/><text id="tT" text-anchor="middle" y="${mt-7}" style="font-weight:700;fill:var(--text)">오늘</text><circle id="tD" r="6" fill="#fff" stroke="#1b2030" stroke-width="2.5"/></g>`;
   h+=`</g></g>`;
   h+=`<g id="hg" display="none" style="pointer-events:none"><line id="hv" y1="${mt}" y2="${H-mb}" stroke="#fff" stroke-opacity=".8"/><line id="hh" x1="${ml}" x2="${W-mr}" stroke="#fff" stroke-opacity=".8"/><circle id="h1" r="4.5" fill="${RISE}" stroke="#fff" stroke-width="2"/><circle id="h2" r="4.5" fill="${SET}" stroke="#fff" stroke-width="2"/></g>`;
-  chEl.innerHTML=h;render();
+  chEl.innerHTML=h;render();graphScale(zk($("cvw")));
 }
 
 /* 포인터 */
@@ -275,16 +277,30 @@ function clickAt(ux,uy){
 let down=false;
 /* 확대: 두 번 누르면 2배 ↔ 원래 크기. 한 번 누르기는 잠깐 기다렸다가 선택, 끌기는 바로 선택 + 가장자리에서 화면 따라감 */
 function dbl(){let t=0,x=0,y=0;return e=>{const n=Date.now(),hit=n-t<300&&Math.hypot(e.clientX-x,e.clientY-y)<30;t=hit?0:n;x=e.clientX;y=e.clientY;return hit}}
-const ZL=w=>w.id==="mapw"?[1,2,4,8,16,32]:[1,2];
-function setZoom(w,lv,fx,fy){
-  const L=ZL(w),k=L[lv],z=k>1;w.dataset.lv=lv;w.firstElementChild.style.width=k*100+"%";w.classList.toggle("z",z);
+const ZMAX=32,zk=w=>+w.dataset.k||1;
+function setScale(w,k,ax,ay){
+  k=Math.max(1,Math.min(ZMAX,k));const r=w.getBoundingClientRect(),k0=zk(w);if(ax==null){ax=r.left+r.width/2;ay=r.top+r.height/2}
+  const ux=(ax-r.left+w.scrollLeft)/k0,uy=(ay-r.top+w.scrollTop)/k0;
+  w.dataset.k=k;w.firstElementChild.style.width=k*100+"%";w.classList.toggle("z",k>1.001);
+  w.scrollLeft=ux*k-(ax-r.left);w.scrollTop=uy*k-(ay-r.top);
   if(w.id==="mapw"){mapK=k;mapScale();const hi=k>=8;if(hi!==mapHi&&mapLoaded){mapHi=hi;getTopo(hi?"50m":"110m").then(buildMap).catch(()=>{mapHi=false})}mzlUpd()}
-  if(z){w.scrollLeft=fx*w.scrollWidth-w.clientWidth/2;w.scrollTop=fy*w.scrollHeight-w.clientHeight/2}
-  if(w.id==="cvw"){showTip(-1e4,-1e4);axUpd()}
+  else{graphScale(k);showTip(-1e4,-1e4);axUpd();$("pn").hidden=k<=1.001}
 }
-function zoomToggle(w,cx,cy){const r=w.getBoundingClientRect();setZoom(w,((+w.dataset.lv||0)+1)%ZL(w).length,(cx-r.left+w.scrollLeft)/w.scrollWidth,(cy-r.top+w.scrollTop)/w.scrollHeight)}
-function mzlUpd(){const m=$("mzl"),w=$("mapw");m.hidden=mapK<=1;m.textContent=mapK+"배";m.style.top=(w.offsetTop+w.offsetHeight-22)+"px"}
-function mapZoomTo(lo,la,k){if(!$("mapsheet").classList.contains("open"))openMap();const w=$("mapw");let lv=ZL(w).indexOf(k);if(lv<0)lv=0;setZoom(w,lv,mpx(lo)/MW,mpy(la)/MH)}
+function zoomToggle(w,cx,cy){const k=zk(w),nx=w.id==="mapw"?([2,4,8,16,32].find(z=>z>k*1.01)||1):(k>1.01?1:2);setScale(w,nx,cx,cy)}
+function graphScale(k){chEl.querySelectorAll(".dm").forEach(p=>p.setAttribute("transform",`translate(${p.dataset.x} ${p.dataset.y}) scale(${1/k})`));
+  ["tD","pkr","h1","h2"].forEach(id=>{const c=$(id);if(!c)return;c.dataset.r=c.dataset.r||c.getAttribute("r");c.setAttribute("r",c.dataset.r/k)})}
+/* 두 손가락 벌리기·모으기 */
+function pinchable(el,w,o){const P=new Map();let st=null,busy=false;
+  const two=()=>{const[a,b]=[...P.values()];return [Math.hypot(a[0]-b[0],a[1]-b[1]),(a[0]+b[0])/2,(a[1]+b[1])/2]};
+  el.addEventListener("pointerdown",e=>{P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size===2){const[d,mx,my]=two();st={d,k:zk(w),mx,my};busy=true;o.start()}},true);
+  el.addEventListener("pointermove",e=>{if(!P.has(e.pointerId))return;P.set(e.pointerId,[e.clientX,e.clientY]);if(!st||P.size<2)return;
+    const[d,mx,my]=two();setScale(w,st.k*d/Math.max(10,st.d),mx,my);const dx=mx-st.mx,dy=my-st.my;w.scrollLeft-=dx;w.scrollTop-=dy;if(o.pan)o.pan(dx,dy);st.mx=mx;st.my=my;if(w.id==="cvw")axUpd()},true);
+  const up=e=>{P.delete(e.pointerId);if(P.size<2)st=null;if(!P.size)setTimeout(()=>busy=false,0)};
+  el.addEventListener("pointerup",up,true);el.addEventListener("pointercancel",up,true);
+  el.addEventListener("wheel",e=>{if(e.ctrlKey){e.preventDefault();setScale(w,zk(w)*Math.exp(-e.deltaY*.01),e.clientX,e.clientY)}else if(o.wheel)o.wheel(e)},{passive:false});
+  return {busy:()=>busy}}
+function mzlUpd(){const m=$("mzl"),w=$("mapw"),r=Math.round(mapK);m.hidden=r<=1;m.textContent=r+"배";m.style.top=(w.offsetTop+w.offsetHeight-22)+"px"}
+function mapZoomTo(lo,la,k){if(!$("mapsheet").classList.contains("open"))openMap();const w=$("mapw");setScale(w,k);w.scrollLeft=mpx(lo)/MW*w.scrollWidth-w.clientWidth/2;w.scrollTop=mpy(la)/MH*w.scrollHeight-w.clientHeight/2}
 function fitZoom(pts,max){const lo=pts.map(p=>p[0]),la=pts.map(p=>p[1]),sx=(Math.max(...lo)-Math.min(...lo))*1.3,sy=(Math.max(...la)-Math.min(...la))*1.3;
   let k=2;[4,8,16].forEach(z=>{if(z<=max&&sx<=360/z&&sy<=180/z&&k===z/2)k=z});
   return [k,(Math.max(...lo)+Math.min(...lo))/2,(Math.max(...la)+Math.min(...la))/2]}
@@ -305,11 +321,14 @@ function axUpd(){
   a.innerHTML=h;
 }
 zc.addEventListener("scroll",axUpd);
-chEl.addEventListener("pointerdown",e=>{down=true;gdrag=false;gx=e.clientX;gy=e.clientY;try{chEl.setPointerCapture(e.pointerId)}catch(_){}});
+const gP=pinchable(chEl,zc,{start(){down=false;gdrag=false;gES.stop();clearTimeout(gtm);hideHover()},
+  pan(dx){if(zk(zc)<=1.001)setView(viewStart-dx/(chEl.getBoundingClientRect().width/W*ppd))},
+  wheel(e){if(zk(zc)<=1.001&&Math.abs(e.deltaX)>Math.abs(e.deltaY)){e.preventDefault();setView(viewStart+e.deltaX/(chEl.getBoundingClientRect().width/W*ppd))}}});
+chEl.addEventListener("pointerdown",e=>{if(gP.busy())return;down=true;gdrag=false;gx=e.clientX;gy=e.clientY;try{chEl.setPointerCapture(e.pointerId)}catch(_){}});
 chEl.addEventListener("pointermove",e=>{const[ux,uy]=loc(e);
   if(down){if(!gdrag&&Math.hypot(e.clientX-gx,e.clientY-gy)>8){gdrag=true;clearTimeout(gtm);gES.start(e.clientX,e.clientY)}if(gdrag){gES.move(e.clientX,e.clientY);clickAt(ux,uy)}return}
   if(e.pointerType==="mouse")hover(ux,uy)});
-chEl.addEventListener("pointerup",e=>{if(!down)return;down=false;gES.stop();if(gdrag)return;clearTimeout(gtm);
+chEl.addEventListener("pointerup",e=>{if(!down||gP.busy())return;down=false;gES.stop();if(gdrag)return;clearTimeout(gtm);
   if(gdb(e)){zoomToggle(zc,e.clientX,e.clientY);return}
   const[ux,uy]=loc(e);gtm=setTimeout(()=>clickAt(ux,uy),300)});
 chEl.addEventListener("pointercancel",()=>{down=false;gES.stop()});
@@ -321,7 +340,7 @@ function renderInfo(){
   const cell=r=>{const c0=col(r[2]),c1=col(r[3]),lum=(c0.concat(c1).reduce((a,x,j)=>a+x*[.299,.587,.114][j%3],0))/2/255;
     return `<span class="rw" style="background:linear-gradient(90deg,rgb(${c0.map(Math.round)}),rgb(${c1.map(Math.round)}));color:${lum<.5?"#fff":"#1b2030"}"><span>${r[0]}</span><b>${r[1]==null?"—":hm(r[1])}</b></span>`};
   const du=!v.pol&&C&&Nn&&A?`일출 전 어스름: 환한 ${Math.round(v.rise-C[0])}분 · 짙은 ${Math.round(v.rise-Nn[0])}분 · 깊은 ${Math.round(v.rise-A[0])}분`:"";
-  $("info").innerHTML=`<b>${v.y}년 ${v.m+1}월 ${v.d}일 ${hm(mn)}</b> · ${phaseL(al,mn<v.noon)}<br><span id="until">${rel(picked?picked.ms:msOf(v,mn))}</span> · 태양 고도 ${al.toFixed(1)}° · 가장 높은 때 ${hm(v.noon)} (${v.alt.toFixed(1)}°)<div class="rows">${[0,4,1,5,2,6,3,7].map(i=>cell(L[i])).join("")}</div><div class="cap"><span>${du}</span><span class="ver">v2.0</span></div>`;
+  $("info").innerHTML=`<b>${v.y}년 ${v.m+1}월 ${v.d}일 ${hm(mn)}</b> · ${phaseL(al,mn<v.noon)}<br><span id="until">${rel(picked?picked.ms:msOf(v,mn))}</span> · 태양 고도 ${al.toFixed(1)}° · 가장 높은 때 ${hm(v.noon)} (${v.alt.toFixed(1)}°)<div class="rows">${[0,4,1,5,2,6,3,7].map(i=>cell(L[i])).join("")}</div><div class="cap"><span>${du}</span><span class="ver">v2.1</span></div>`;
 }
 
 function tick(){
@@ -640,11 +659,11 @@ function buildMap(topo){
   $("mapsvg").innerHTML=h;mapScale();
 }
 let mapK=1;
-function mapDeclutter(){const w=msv.getBoundingClientRect().width||358,px=w/MW,placed=[],MIN=mapK===1?5:9;
+function mapDeclutter(){const w=msv.getBoundingClientRect().width||358,px=w/MW,placed=[],MIN=mapK<1.5?5:9;
   const order=FL.map((f,i)=>i).sort((a,b)=>(FL[b].tier-FL[a].tier)||a-b);
-  order.forEach(i=>{const f=FL[i];f.vis=false;if(mapK===1&&!f.tier)return;const x=mpx(f.t[2])*px,y=mpy(f.t[1])*px;
+  order.forEach(i=>{const f=FL[i];f.vis=false;if(mapK<1.5&&!f.tier)return;const x=mpx(f.t[2])*px,y=mpy(f.t[1])*px;
     if(placed.some(p=>Math.hypot(p[0]-x,p[1]-y)<MIN))return;placed.push([x,y]);f.vis=true})}
-function mapScale(){mapDeclutter();msv.querySelectorAll("circle").forEach(c=>{if(c.closest("#mk"))return;if(c.dataset.i!=null)c.style.display=FL[+c.dataset.i].vis?"":"none";c.dataset.r=c.dataset.r||c.getAttribute("r");c.dataset.s=c.dataset.s||c.getAttribute("stroke-width");c.setAttribute("r",(mapK===1?1.9:+c.dataset.r)/mapK);c.setAttribute("stroke-width",c.dataset.s/mapK)});markMap()}
+function mapScale(){mapDeclutter();msv.querySelectorAll("circle").forEach(c=>{if(c.closest("#mk"))return;if(c.dataset.i!=null)c.style.display=FL[+c.dataset.i].vis?"":"none";c.dataset.r=c.dataset.r||c.getAttribute("r");c.dataset.s=c.dataset.s||c.getAttribute("stroke-width");c.setAttribute("r",(mapK<1.5?1.9:+c.dataset.r)/mapK);c.setAttribute("stroke-width",c.dataset.s/mapK)});markMap()}
 function mshow(lo,la){const m=$("mk");if(m){m.removeAttribute("display");m.setAttribute("transform",`translate(${mpx(lo)} ${mpy(la)}) scale(${1/mapK})`)}}
 function markMap(){if($("mk"))mshow(lon,lat)}
 /* 해안선: 8배 이상 확대하면 고해상도 */
@@ -674,13 +693,14 @@ const mw=$("mapw"),mdb=dbl(),mES=edgeScroll(mw,mDragAt);let mx=0,my=0,mtm=0,mdra
 function mapGo(lo,la){const w=msv.getBoundingClientRect().width/MW;
   const n=FL.filter(f=>f.vis).map(f=>({f,d:Math.hypot((f.t[2]-lo)*MW/360,(f.t[1]-la)*MH/180)*w})).sort((a,b)=>a.d-b.d)[0];
   if(n&&n.d<9)pickCity(n.f.ci,n.f.ni,n.f.ti);else{setCustom(la,lo);gpsSelects(la,lo)}}
-msv.addEventListener("pointerdown",e=>{mdn=true;mdrag=false;mx=e.clientX;my=e.clientY;try{msv.setPointerCapture(e.pointerId)}catch(_){}});
+const mP=pinchable(msv,mw,{start(){mdn=false;mdrag=false;mES.stop();clearTimeout(mtm);markMap();mtipShow(null)}});
+msv.addEventListener("pointerdown",e=>{if(mP.busy())return;mdn=true;mdrag=false;mx=e.clientX;my=e.clientY;try{msv.setPointerCapture(e.pointerId)}catch(_){}});
 msv.addEventListener("pointermove",e=>{if(!mdn)return;if(!mdrag&&Math.hypot(e.clientX-mx,e.clientY-my)>8){mdrag=true;clearTimeout(mtm);mES.start(e.clientX,e.clientY)}
   if(mdrag){mES.move(e.clientX,e.clientY);mDragAt(e.clientX,e.clientY)}});
 msv.addEventListener("pointermove",e=>{if(!mdn&&e.pointerType==="mouse")mtipShow(nearDot(e.clientX,e.clientY,14))});
 msv.addEventListener("pointerleave",()=>{if(!mdn)mtipShow(null)});
 msv.addEventListener("pointercancel",()=>{mdn=false;mES.stop();markMap();mtipShow(null)});
-msv.addEventListener("pointerup",e=>{if(!mdn)return;mdn=false;mES.stop();clearTimeout(mtm);if(e.pointerType!=="mouse")mtipShow(null);
+msv.addEventListener("pointerup",e=>{if(!mdn||mP.busy())return;mdn=false;mES.stop();clearTimeout(mtm);if(e.pointerType!=="mouse")mtipShow(null);
   if(mdrag){mapGo(mpos[0],mpos[1]);return}
   if(mdb(e)){zoomToggle(mw,e.clientX,e.clientY);return}
   const[lo,la]=mloc(e);mtm=setTimeout(()=>{mshow(lo,la);mapGo(lo,la)},300)});
