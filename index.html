@@ -14,7 +14,8 @@
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);--text:#1b2030;--sub:rgba(27,32,48,.62);--card:rgba(255,255,255,.6);--line:rgba(27,32,48,.14);--sheet:rgb(250,250,247)}
 html{scroll-padding-top:env(safe-area-inset-top,0px);background:#fff;transition:background .8s}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:12px 16px 16px;transition:background .8s,color .8s;background:#fff}
+html,body{overscroll-behavior:none}
+body{margin:0;min-height:calc(100vh - env(safe-area-inset-top,0px));min-height:calc(100dvh - env(safe-area-inset-top,0px));color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:12px 16px 16px;transition:background .8s,color .8s;background:#fff}
 .wrap{max-width:560px;margin:0 auto}
 .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center;font-size:13px}
 .bar[hidden]{display:none}
@@ -45,7 +46,7 @@ svg text{font-size:12px;fill:var(--sub);font-family:inherit}
 .tip[hidden]{display:none}
 .read{font-size:12px;margin:6px 2px 12px;font-variant-numeric:tabular-nums;white-space:pre-line;line-height:1.45;color:var(--sub)}
 #rdo{white-space:pre;height:2.9em;overflow:hidden;letter-spacing:-.2px}
-.sheet{position:sticky;bottom:0;margin:0 -16px -16px;padding:2px 16px calc(14px + env(safe-area-inset-bottom,0px));background:var(--sheet);box-shadow:0 -6px 20px rgba(0,0,0,.12);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:592px;margin:0 auto;cursor:pointer;padding:2px 16px calc(14px + env(safe-area-inset-bottom,0px));background:var(--sheet);box-shadow:0 -6px 20px rgba(0,0,0,.12);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0}
 .hdl{display:block;width:100%;height:24px;border:0;background:none;padding:0;position:relative;touch-action:none}
 .hdl::after{content:"";position:absolute;left:50%;top:9px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--sub);opacity:.6}
 .two{display:grid;grid-template-columns:1fr 1px 1fr;gap:0 12px}
@@ -54,7 +55,7 @@ svg text{font-size:12px;fill:var(--sub);font-family:inherit}
 .t .n{font-size:12px;color:var(--sub)}
 .t .v{font-size:26px;font-weight:700;margin:1px 0;font-variant-numeric:tabular-nums}
 .t .d{font-size:11px;color:var(--sub)}
-.more{display:none;margin-top:12px;max-height:50vh;overflow:auto}
+.more{display:none;margin-top:12px;max-height:calc(100dvh - 150px);overflow:auto}
 .sheet.open .more{display:block}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .card{border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -321,10 +322,13 @@ function initWheels(){
     c.addEventListener("click",e=>{const it=e.target.closest(".it");if(it){wTouch=Date.now();c.scrollTo({top:(+it.dataset.v-wr(k)[0])*IH,behavior:"smooth"})}});
   });
 }
-const sh=$("sheet");let hd=null;
+const sh=$("sheet");let hd=null,sw=0;
 function setSheet(o){sh.classList.toggle("open",o);if(o)renderInfo()}
-$("hdl").addEventListener("pointerdown",e=>{hd=e.clientY});
-$("hdl").addEventListener("pointerup",e=>{if(hd==null)return;const dy=e.clientY-hd;hd=null;setSheet(dy<-20?true:dy>20?false:!sh.classList.contains("open"))});
+function padSheet(){if(!sh.classList.contains("open"))document.body.style.paddingBottom=(sh.offsetHeight+8)+"px"}
+sh.addEventListener("pointerdown",e=>{hd=e.clientY});
+sh.addEventListener("pointerup",e=>{if(hd==null)return;const dy=e.clientY-hd;hd=null;if(Math.abs(dy)>20){sw=Date.now();setSheet(dy<0)}});
+sh.addEventListener("click",()=>{if(Date.now()-sw<500)return;setSheet(!sh.classList.contains("open"))});
+window.addEventListener("resize",padSheet);
 const K="Asia/Seoul";
 const DB=[
 ["아시아","대한민국",[["서울",37.5636,126.9976,K],["인천",37.4563,126.7052,K],["수원",37.2636,127.0286,K],["춘천",37.8813,127.7298,K],["강릉",37.7519,128.8761,K],["대전",36.3504,127.3845,K],["전주",35.8242,127.148,K],["대구",35.8714,128.6014,K],["울산",35.5384,129.3114,K],["부산",35.1796,129.0756,K],["광주",35.1595,126.8526,K],["목포",34.8118,126.3922,K],["제주",33.4996,126.5312,K]]],
@@ -356,9 +360,34 @@ function lfill(k){const items=k==="c"?CONT:k==="n"?listN().map(r=>r[1]):listT().
   c.innerHTML=items.map((x,i)=>`<option value="${i}">${x}</option>`).join("");c.value=lw[k]}
 function locChosen(){const t=listT()[lw.t];$("locnote").hidden=true;setLoc({name:t[0],lat:t[1],lon:t[2],tz:t[3]})}
 function initLWheels(){
-  LK.forEach(k=>{lfill(k);$(LS[k]).addEventListener("change",e=>{lw[k]=+e.target.value;if(k==="c"){lw.n=0;lw.t=0;lfill("n");lfill("t")}else if(k==="n"){lw.t=0;lfill("t")}locChosen()})});
+  LK.forEach(k=>{lfill(k);$(LS[k]).addEventListener("change",e=>{if(e.target.value==="-")return;lw[k]=+e.target.value;if(k==="c"){lw.n=0;lw.t=0;lfill("n");lfill("t")}else if(k==="n"){lw.t=0;lfill("t")}locChosen()})});
 }
 function pickCity(ci,ni,ti){lw.c=ci;lw.n=ni;lw.t=ti;LK.forEach(lfill);locChosen()}
+/* 현위치 → 대륙·나라·도시 칸 맞추기 (없으면 "-") */
+const DASH='<option value="-">-</option>';
+function lset(ci,ni,ti){
+  lw.c=ci??0;lw.n=ni??0;lw.t=ti??0;LK.forEach(lfill);
+  const only=k=>{$(LS[k]).innerHTML=DASH;$(LS[k]).value="-"},add=k=>{$(LS[k]).insertAdjacentHTML("afterbegin",DASH);$(LS[k]).value="-"};
+  if(ci==null){LK.forEach(only);return}
+  if(ni==null){add("n");only("t");return}
+  if(ti==null)add("t");
+}
+const ISO={"대한민국":"KR","일본":"JP","중국":"CN","싱가포르":"SG","태국":"TH","인도":"IN","아랍에미리트":"AE","시베리아":"RU","영국":"GB","프랑스":"FR","이탈리아":"IT","러시아":"RU","튀르키예":"TR","노르웨이":"NO","아이슬란드":"IS","이집트":"EG","케냐":"KE","남아공":"ZA","세네갈":"SN","나이지리아":"NG","미국":"US","캐나다":"CA","멕시코":"MX","그린란드":"GL","브라질":"BR","아르헨티나":"AR","페루":"PE","에콰도르":"EC","콜롬비아":"CO","칠레":"CL","호주":"AU","뉴질랜드":"NZ","폴리네시아":"PF WS","남극":"AQ"};
+const CCN={AS:"아시아",EU:"유럽",AF:"아프리카",NA:"북미",SA:"남미",OC:"오세아니아",AN:"남극"};
+const kmTo=(a,b,c,d)=>12742*Math.asin(Math.sqrt(Math.sin((c-a)*R/2)**2+Math.cos(a*R)*Math.cos(c*R)*Math.sin((d-b)*R/2)**2));
+async function gpsSelects(la,lo){
+  const nb=FL.map(f=>({f,d:kmTo(la,lo,f.t[1],f.t[2])})).sort((a,b)=>a.d-b.d)[0];
+  if(nb&&nb.d<30){lset(nb.f.ci,nb.f.ni,nb.f.ti);return}
+  lset(null,null,null);
+  try{
+    const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${la}&longitude=${lo}&localityLanguage=ko`);if(!r.ok)return;
+    const j=await r.json(),cc=j.countryCode;
+    let rows=DB.filter(x=>(ISO[x[1]]||"").split(" ").includes(cc));
+    if(cc==="RU")rows=rows.filter(x=>x[1]===(lo>60?"시베리아":"러시아"));
+    if(rows.length){const row=rows[0],ci=CONT.indexOf(row[0]),ni=DB.filter(x=>x[0]===row[0]).indexOf(row);lset(ci,ni,null);return}
+    const ci=CONT.indexOf(CCN[j.continentCode]);if(ci>=0)lset(ci,null,null);
+  }catch(_){}
+}
 function setCustom(la,lo,z,label){
   la=Math.max(-89,Math.min(89,la));lo=((lo+540)%360)-180;
   const nm=`${Math.abs(la).toFixed(1)}°${la<0?"S":"N"} ${Math.abs(lo).toFixed(1)}°${lo<0?"W":"E"}`;
@@ -394,11 +423,12 @@ async function openMap(){
   try{await loadScript("https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js");await loadScript("https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js");await loadScript("https://cdn.jsdelivr.net/npm/datamaps@0.5.10/dist/datamaps.world.min.js");buildMap(Datamap.prototype.worldTopo)}catch(_){}
 }
 $("mapb").addEventListener("click",openMap);
+document.addEventListener("click",e=>{const m=$("mapsheet");if(!m.classList.contains("open")||m.contains(e.target)||$("mapb").contains(e.target))return;m.classList.remove("open");$("mapb").textContent="지도"},true);
 $("gpsb").addEventListener("click",()=>{
   const n=$("locnote"),fail=()=>{n.hidden=false;n.textContent="현재 위치를 가져올 수 없어요. 위치 권한을 허용했는지 확인하거나 지도에서 직접 골라 주세요."};
   if(!navigator.geolocation){fail();return}
   n.hidden=false;n.textContent="현재 위치를 찾는 중이에요…";
-  navigator.geolocation.getCurrentPosition(p=>{let z=null;try{z=Intl.DateTimeFormat().resolvedOptions().timeZone||null}catch(_){}setCustom(p.coords.latitude,p.coords.longitude,z,"현재 위치")},fail,{timeout:10000,maximumAge:6e5});
+  navigator.geolocation.getCurrentPosition(p=>{let z=null;try{z=Intl.DateTimeFormat().resolvedOptions().timeZone||null}catch(_){}setCustom(p.coords.latitude,p.coords.longitude,z,"현재 위치");gpsSelects(p.coords.latitude,p.coords.longitude)},fail,{timeout:10000,maximumAge:6e5});
 });
 const msv=$("mapsvg"),mloc=e=>{const r=msv.getBoundingClientRect();return [Math.max(-180,Math.min(180,(e.clientX-r.left)/r.width*360-180)),Math.max(-90,Math.min(90,90-(e.clientY-r.top)/r.height*180))]};
 msv.addEventListener("pointerdown",e=>{mdn=true;try{msv.setPointerCapture(e.pointerId)}catch(_){}mpos=mloc(e);mshow(mpos[0],mpos[1])});
@@ -407,7 +437,7 @@ msv.addEventListener("pointerup",()=>{if(!mdn)return;mdn=false;const[lo,la]=mpos
   const n=FL.map(f=>({f,d:Math.hypot((f.t[2]-lo)*MW/360,(f.t[1]-la)*MH/180)*w})).sort((a,b)=>a.d-b.d)[0];
   if(n&&n.d<9)pickCity(n.f.ci,n.f.ni,n.f.ti);else setCustom(la,lo)});
 $("pn").max=N-Wd;$("pn").addEventListener("input",e=>setView(+e.target.value));
-build();initWheels();initLWheels();setView(SPAN-Wd/2);tick();setInterval(tick,1000);
+build();initWheels();initLWheels();setView(SPAN-Wd/2);tick();padSheet();setInterval(tick,1000);
 </script>
 </body>
 </html>
