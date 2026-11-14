@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="날씨 비교">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>날씨 비교 · 어제와 다른 해</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);--text:#1b2030;--sub:rgba(27,32,48,.62);--card:rgba(255,255,255,.72);--line:rgba(27,32,48,.14);--bg:#f4f3ee;--hot:#D85A30;--cold:#2a78c8;--same:#1D9E75;--ink:#1b2030}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--text);background:var(--bg);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:12px 16px calc(28px + env(safe-area-inset-bottom,0px));font-variant-numeric:tabular-nums}
+.wrap{max-width:560px;margin:0 auto}
+button,input,select{font:inherit;font-size:14px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+button{cursor:pointer}
+.top{display:flex;gap:6px;align-items:center}
+.locb{flex:1;min-width:0;text-align:left;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.locb small{font-weight:500;color:var(--sub);font-size:12px;margin-left:6px}
+.sm{flex:none;font-size:12px;font-weight:600;padding:0 10px;height:36px}
+.star.on{background:#ffd23f;border-color:#e0b420}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:8px 0 2px;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:13px;font-weight:600;padding:5px 11px;border-radius:16px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.panel{display:none;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.panel.open{display:block}
+.panel input{width:100%}
+.res{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:210px;overflow:auto}
+.res button{text-align:left;font-size:13px}
+.res button small{color:var(--sub);margin-left:6px}
+.reg{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.reg b{width:100%;font-size:11px;color:var(--sub);font-weight:600;margin-top:4px}
+.reg button{font-size:12px;padding:4px 9px;border-radius:14px}
+.hint{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.5}
+.hero{text-align:center;padding:18px 0 6px}
+.hero .w{font-size:14px;color:var(--sub)}
+.hero .big{font-size:clamp(56px,18vw,76px);font-weight:700;letter-spacing:-2px;line-height:1.05}
+.hero .dl{display:inline-block;margin-top:6px;font-size:17px;font-weight:700;padding:5px 14px;border-radius:18px;color:#fff;background:var(--same)}
+.hot{color:var(--hot)}.cold{color:var(--cold)}.same{color:var(--same)}
+.dl.hot{background:var(--hot);color:#fff}.dl.cold{background:var(--cold);color:#fff}
+.hero .up{font-size:11px;color:var(--sub);margin-top:8px}
+h2{font-size:15px;margin:22px 2px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h2 span{font-size:11px;font-weight:500;color:var(--sub)}
+.card{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.st{text-align:center;padding:10px 4px}
+.st .n{font-size:11px;color:var(--sub)}
+.st .v{font-size:19px;font-weight:700;margin:2px 0}
+.st .d{font-size:11px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:7px 4px;text-align:right;border-top:1px solid var(--line)}
+th{font-size:11px;color:var(--sub);font-weight:600;border-top:0}
+td:first-child,th:first-child{text-align:left;color:var(--sub)}
+td b{font-size:15px}
+svg{display:block;width:100%;height:auto;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+svg text{font-size:11px;fill:var(--sub);font-family:inherit}
+.lg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--sub);margin-top:6px}
+.lg i{display:inline-block;width:16px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+.lg i.da{border-top-style:dashed}
+.read{font-size:12px;color:var(--sub);line-height:1.5;margin-top:8px;min-height:18px;white-space:pre-line}
+.read b{color:var(--text)}
+.seg{display:flex;gap:4px}
+.seg button{font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hrs{display:flex;overflow-x:auto;scrollbar-width:none;gap:2px}
+.hrs::-webkit-scrollbar{display:none}
+.hr{flex:none;width:46px;text-align:center;font-size:12px;padding:4px 0}
+.hr .t{font-size:11px;color:var(--sub)}
+.hr .i{font-size:20px;line-height:1.5}
+.hr .v{font-weight:700;font-size:14px}
+.hr .p{font-size:10px;color:var(--cold);height:13px}
+.hr.d0{border-left:1px solid var(--line)}
+.dy{display:grid;grid-template-columns:52px 26px 36px 30px 1fr 30px;gap:6px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
+.dy:first-child{border-top:0}
+.dy .p{font-size:11px;color:var(--cold);text-align:right}
+.dy .lo{color:var(--sub);text-align:right}
+.dy .hi{font-weight:700}
+.dy .bar{height:6px;border-radius:3px;background:var(--line);position:relative}
+.dy .bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#6aa7e0,#f0a04b)}
+.sat{position:relative;border-radius:10px;overflow:hidden;background:#111;min-height:120px}
+.sat img{display:block;width:100%;height:auto}
+.sat .tm{position:absolute;left:8px;bottom:8px;font-size:12px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:8px}
+.satc{display:flex;gap:8px;align-items:center;margin-top:8px}
+.satc input{flex:1;padding:0;border:0;background:none;accent-color:var(--ink);height:24px}
+.err{padding:14px;border-radius:12px;background:#fde8e1;color:#8a2c10;font-size:13px;line-height:1.5;margin-top:10px}
+.err[hidden]{display:none}
+.foot{font-size:11px;color:var(--sub);line-height:1.6;margin-top:22px}
+.foot a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <button class="locb" id="locb"></button>
+    <button class="sm star" id="star" aria-label="즐겨찾기">☆</button>
+    <button class="sm" id="gps">현위치</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="panel" id="panel">
+    <input id="q" type="search" placeholder="장소 검색 (예: 성수동, 양양, 을지로)" autocomplete="off">
+    <div class="res" id="res"></div>
+    <div class="reg" id="reg"></div>
+    <div class="hint">☆를 누르면 위쪽 줄에 고정돼요. 고정된 이름을 길게 누르면 지워져요. 대한민국 안에서만 찾아요.</div>
+  </div>
+  <div class="err" id="err" hidden></div>
+
+  <div class="hero">
+    <div class="w" id="hw">불러오는 중…</div>
+    <div class="big" id="ht">–</div>
+    <div class="dl" id="hd">어제 이 시간과 비교 중</div>
+    <div class="up" id="hu"></div>
+  </div>
+  <div class="g3" id="nowg"></div>
+
+  <h2>오늘 vs 어제 <span>시간별 기온</span></h2>
+  <div class="card">
+    <svg id="c1" viewBox="0 0 560 230"></svg>
+    <div class="lg"><span><i style="border-color:#1b2030"></i>오늘 (지나간 시간)</span><span><i class="da" style="border-color:#1b2030"></i>오늘 (예보)</span><span><i style="border-color:#9aa0ad"></i>어제</span></div>
+    <div class="read" id="r1"></div>
+    <table id="t1" style="margin-top:8px"></table>
+  </div>
+
+  <h2>다른 해의 오늘 <span class="seg" id="ysel"></span></h2>
+  <div class="card">
+    <svg id="c2" viewBox="0 0 560 250"></svg>
+    <div class="lg"><span><i style="border-color:#c9ccd4"></i>그 해의 최저~최고</span><span><i style="border-color:#D85A30"></i>올해</span><span>● 지금 이 시각 기온</span><span>▮ 비 온 해</span></div>
+    <div class="read" id="r2"></div>
+  </div>
+
+  <h2>예보 <span class="seg" id="msel"></span></h2>
+  <div class="card"><div class="hrs" id="hrs"></div></div>
+  <div class="card" style="margin-top:8px" id="days"></div>
+
+  <h2>예보는 맞았나 <span class="seg" id="vsel"></span></h2>
+  <div class="card">
+    <svg id="c3" viewBox="0 0 560 230"></svg>
+    <div class="lg"><span><i style="border-color:#1b2030"></i>실제 (분석값)</span><span><i style="border-color:#D85A30"></i>하루 전 예보</span><span><i class="da" style="border-color:#2a78c8"></i>이틀 전 예보</span><span><i class="da" style="border-color:#b9a3d8"></i>사흘 전 예보</span></div>
+    <table id="t3" style="margin-top:8px"></table>
+    <div class="read" id="r3"></div>
+  </div>
+
+  <h2>위성 · 레이더 <span class="seg" id="ssel"></span></h2>
+  <div class="card">
+    <div class="sat"><img id="simg" alt="위성 영상"><div class="tm" id="stm"></div></div>
+    <div class="satc"><button class="sm" id="splay">▶</button><input type="range" id="srng" min="0" max="11" step="1" value="11" aria-label="시간 이동"></div>
+    <div class="read" id="r4"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id),p2=n=>String(n).padStart(2,"0");
+const LS={get(k,d){try{const v=localStorage.getItem("wx."+k);return v==null?d:JSON.parse(v)}catch(_){return d}},set(k,v){try{localStorage.setItem("wx."+k,JSON.stringify(v))}catch(_){}}};
+const KST=9*36e5,kNow=()=>new Date(Date.now()+KST),kDate=d=>d.toISOString().slice(0,10);
+const WD="일월화수목금토";
+
+/* ───── 위치 ───── */
+const PRESET=[["수도권",[["서울",37.5665,126.978],["인천",37.4563,126.7052],["수원",37.2636,127.0286],["고양",37.6584,126.832],["파주",37.76,126.78],["성남",37.42,127.1265],["용인",37.2411,127.1776],["양평",37.4917,127.4875],["가평",37.8315,127.5097]]],
+["강원",[["춘천",37.8813,127.7298],["원주",37.3422,127.9202],["강릉",37.7519,128.8761],["속초",38.207,128.5918],["양양",38.0754,128.619],["평창",37.3708,128.3903],["대관령",37.6771,128.7183],["태백",37.1641,128.9856],["정선",37.3807,128.6608]]],
+["충청",[["대전",36.3504,127.3845],["세종",36.48,127.289],["청주",36.6424,127.489],["충주",36.991,127.9259],["천안",36.8151,127.1139],["태안",36.7456,126.298],["보령",36.3334,126.6127],["단양",36.9846,128.3655]]],
+["전라",[["광주",35.1595,126.8526],["전주",35.8242,127.148],["군산",35.9677,126.7366],["목포",34.8118,126.3922],["여수",34.7604,127.6622],["순천",34.9507,127.4872],["담양",35.3211,126.9882],["신안",34.8335,126.3517]]],
+["경상",[["부산",35.1796,129.0756],["대구",35.8714,128.6014],["울산",35.5384,129.3114],["포항",36.019,129.3435],["경주",35.8562,129.2247],["안동",36.5684,128.7294],["창원",35.228,128.6811],["통영",34.8544,128.4332],["거제",34.8806,128.6211],["남해",34.8377,127.8924],["울릉도",37.4844,130.9058]]],
+["제주",[["제주",33.4996,126.5312],["서귀포",33.2541,126.56],["성산",33.4379,126.9129],["한라산",33.3617,126.5292],["모슬포",33.2178,126.2512]]]];
+let favs=LS.get("favs",[{name:"서울",lat:37.5665,lon:126.978},{name:"부산",lat:35.1796,lon:129.0756},{name:"제주",lat:33.4996,lon:126.5312}]);
+let loc=LS.get("loc",favs[0]||{name:"서울",lat:37.5665,lon:126.978});
+const same=(a,b)=>Math.abs(a.lat-b.lat)<.005&&Math.abs(a.lon-b.lon)<.005;
+const inKR=(la,lo)=>la>=32.8&&la<=38.9&&lo>=124&&lo<=132;
+function locUI(){
+  $("locb").innerHTML=`📍 ${esc(loc.name)}<small>${esc(loc.sub||"")} ▾</small>`;
+  const on=favs.some(f=>same(f,loc));$("star").textContent=on?"★":"☆";$("star").classList.toggle("on",on);
+  $("chips").innerHTML=favs.map((f,i)=>`<button class="chip${same(f,loc)?" on":""}" data-i="${i}">${esc(f.name)}</button>`).join("");
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function setLoc(L){loc=L;LS.set("loc",loc);$("panel").classList.remove("open");locUI();load()}
+$("locb").onclick=()=>{$("panel").classList.toggle("open");if($("panel").classList.contains("open"))$("q").focus()};
+$("star").onclick=()=>{const i=favs.findIndex(f=>same(f,loc));if(i>=0)favs.splice(i,1);else favs.push(loc);LS.set("favs",favs);locUI()};
+{let tm=0,long=false;const ch=$("chips");
+  ch.addEventListener("pointerdown",e=>{const b=e.target.closest(".chip");if(!b)return;long=false;tm=setTimeout(()=>{long=true;const f=favs[+b.dataset.i];if(confirm(`'${f.name}' 고정을 지울까요?`)){favs.splice(+b.dataset.i,1);LS.set("favs",favs);locUI()}},650)});
+  ["pointerup","pointerleave","pointercancel"].forEach(t=>ch.addEventListener(t,()=>clearTimeout(tm)));
+  ch.addEventListener("scroll",()=>clearTimeout(tm));
+  ch.addEventListener("click",e=>{const b=e.target.closest(".chip");if(b&&!long)setLoc(favs[+b.dataset.i])});}
+$("reg").innerHTML=PRESET.map(([r,l])=>`<b>${r}</b>`+l.map(c=>`<button data-la="${c[1]}" data-lo="${c[2]}" data-r="${r}">${c[0]}</button>`).join("")).join("");
+$("reg").onclick=e=>{const b=e.target.closest("button");if(b)setLoc({name:b.textContent,sub:b.dataset.r,lat:+b.dataset.la,lon:+b.dataset.lo})};
+const ADM=["province","city","county","borough","city_district","suburb","quarter","town","village","neighbourhood","municipality"];
+{let tm=0,tok=0;$("q").addEventListener("input",()=>{clearTimeout(tm);const q=$("q").value.trim();if(!q){$("res").innerHTML="";return}
+  const loc0=PRESET.flatMap(([r,l])=>l.filter(c=>c[0].startsWith(q)||q.startsWith(c[0])).map(c=>({name:c[0],sub:r,lat:c[1],lon:c[2]})));
+  const show=(L,more)=>{$("res").innerHTML=(L.length?L.map((x,i)=>`<button data-i="${i}">${esc(x.name)}<small>${esc(x.sub)}</small></button>`).join(""):"")+(more||"");
+    $("res").onclick=e=>{const b=e.target.closest("button");if(!b)return;$("q").value="";$("res").innerHTML="";setLoc(L[+b.dataset.i])}};
+  show(loc0,`<div class="hint">찾는 중…</div>`);
+  tm=setTimeout(async()=>{const my=++tok;try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=jsonv2&countrycodes=kr&accept-language=ko&limit=12&addressdetails=1`),j=await r.json();if(my!==tok)return;
+    const seen=new Set(),L=[...loc0];
+    j.filter(x=>inKR(+x.lat,+x.lon)).sort((a,b)=>(ADM.includes(b.addresstype)?1:0)-(ADM.includes(a.addresstype)?1:0)).forEach(x=>{const a=x.address||{},sub=[a.province||a.state,a.city,a.county,a.borough||a.city_district,a.suburb||a.town||a.village].filter((v,i,A)=>v&&v!==x.name&&A.indexOf(v)===i).join(" "),k=x.name+"|"+sub;
+      if(seen.has(k)||L.some(o=>same(o,{lat:+x.lat,lon:+x.lon})))return;seen.add(k);L.push({name:x.name,sub,lat:+(+x.lat).toFixed(4),lon:+(+x.lon).toFixed(4)})});
+    show(L.slice(0,10),L.length?"":`<div class="hint">찾지 못했어요. 동·읍·면 이름이나 시·군 이름으로 써 보세요.</div>`);
+  }catch(_){if(my===tok)show(loc0,`<div class="hint">검색 서버에 연결하지 못했어요.</div>`)}},600)})}
+$("gps").onclick=()=>{if(!navigator.geolocation){alert("이 기기는 위치 기능을 쓸 수 없어요.");return}
+  $("gps").textContent="찾는 중";navigator.geolocation.getCurrentPosition(async p=>{$("gps").textContent="현위치";
+    const la=+p.coords.latitude.toFixed(4),lo=+p.coords.longitude.toFixed(4);if(!inKR(la,lo)){alert("대한민국 밖이라 가져올 수 없어요.");return}
+    let name="현위치",sub="";try{const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${la}&longitude=${lo}&localityLanguage=ko`),j=await r.json();name=j.locality||j.city||name;sub=[j.principalSubdivision,j.city!==name?j.city:""].filter(Boolean).join(" ")}catch(_){}
+    setLoc({name,sub,lat:la,lon:lo})},()=>{$("gps").textContent="현위치";alert("위치를 가져오지 못했어요. 위치 권한을 확인해 주세요.")},{timeout:10000,maximumAge:6e5})};
+
+/* ───── 날씨 말·그림 ───── */
+function wmo(c,night){
+  if(c==null)return["","·"];
+  if(c===0)return["맑음",night?"🌙":"☀️"];if(c===1)return["대체로 맑음",night?"🌙":"🌤️"];if(c===2)return["구름 조금","⛅"];if(c===3)return["흐림","☁️"];
+  if(c===45||c===48)return["안개","🌫️"];if(c>=51&&c<=57)return["이슬비","🌦️"];
+  if(c>=61&&c<=67)return[c===61?"약한 비":c===65?"강한 비":"비","🌧️"];
+  if(c>=71&&c<=77)return[c===71?"약한 눈":c===75?"강한 눈":"눈","🌨️"];
+  if(c>=80&&c<=82)return["소나기","🌦️"];if(c===85||c===86)return["소낙눈","🌨️"];if(c>=95)return["뇌우","⛈️"];return["","·"]}
+const DIR=["북","북동","동","남동","남","남서","서","북서"],dirK=d=>DIR[Math.round(d/45)%8];
+const f1=v=>v==null||isNaN(v)?"–":(Math.round(v*10)/10).toFixed(1);
+const sg=(v,u="",dg=1)=>{if(v==null||isNaN(v))return"–";const r=Math.round(v*10**dg)/10**dg;return(r>0?"+":r<0?"−":"±")+Math.abs(r).toFixed(dg)+u};
+const cls=v=>v==null||isNaN(v)||Math.abs(v)<.05?"same":v>0?"hot":"cold";
+const ip=(a,x)=>{const i=Math.floor(x),f=x-i,p=a[i],q=a[Math.min(a.length-1,i+1)];return p==null?q:q==null?p:p+(q-p)*f};
+
+/* ───── 자료 받기 ───── */
+const MODELS=[["auto","자동"],["ecmwf_ifs025","유럽"],["gfs_seamless","미국"],["icon_seamless","독일"]];
+let model=LS.get("model","auto"),yrs=LS.get("yrs",10),vday=0,F=null,PR=null,YR=null,tok=0;
+if(!MODELS.some(m=>m[0]===model))model="auto";
+const HV="temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,is_day";
+async function getJ(u){const r=await fetch(u);const j=await r.json().catch(()=>null);if(!r.ok||!j||j.error)throw new Error(j&&j.reason||("HTTP "+r.status));return j}
+async function getForecast(){
+  const q=`/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&wind_speed_unit=ms&past_days=1&forecast_days=7`+
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day`+
+    `&hourly=${HV}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max`+(model==="auto"?"":"&models="+model);
+  /* 본 서버가 막히면(하루 한도 등) 같은 자료를 주는 보조 서버로 한 번 더 */
+  try{return await getJ("https://api.open-meteo.com"+q)}catch(e){return await getJ("https://previous-runs-api.open-meteo.com"+q)}
+}
+async function getPrev(){
+  const v=["temperature_2m","precipitation"].flatMap(k=>[k,k+"_previous_day1",k+"_previous_day2",k+"_previous_day3"]).join(",");
+  return getJ(`https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&past_days=1&forecast_days=1&hourly=${v}`+(model==="auto"?"":"&models="+model));
+}
+async function getYears(n,my){
+  const t=kNow(),Y=t.getUTCFullYear(),md=kDate(t).slice(5),key=`a.${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}.${md}`;
+  try{Object.keys(localStorage).forEach(k=>{if(k.startsWith("wx.a.")&&!k.endsWith(md))localStorage.removeItem(k)})}catch(_){}
+  const C=LS.get(key,{}),need=[];for(let y=Y-1;y>=Y-n;y--)if(!C[y])need.push(y);
+  const one=async y=>{const d=md==="02-29"&&new Date(y,1,29).getDate()!==29?"02-28":md;
+    try{const j=await getJ(`https://archive-api.open-meteo.com/v1/archive?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&start_date=${y}-${d}&end_date=${y}-${d}&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum`);
+      if(j.daily.temperature_2m_max[0]!=null)C[y]=[j.daily.temperature_2m_max[0],j.daily.temperature_2m_min[0],j.daily.precipitation_sum[0]||0,j.hourly.temperature_2m];return true}catch(_){return false}};
+  let miss=[];for(let i=0;i<need.length&&my===tok;i+=4){const g=need.slice(i,i+4),ok=await Promise.all(g.map(one));miss.push(...g.filter((_,k)=>!ok[k]));if(my===tok){YR=pickY(C,Y,n);drawYears()}}
+  for(const y of miss){if(my!==tok)break;await new Promise(r=>setTimeout(r,400));await one(y)}
+  LS.set(key,C);return pickY(C,Y,n)}
+const pickY=(C,Y,n)=>{const o=[];for(let y=Y-n;y<Y;y++)if(C[y])o.push({y,hi:C[y][0],lo:C[y][1],pr:C[y][2],h:C[y][3]});return o};
+
+async function load(){
+  const my=++tok;$("err").hidden=true;$("hu").textContent="불러오는 중…";
+  try{const f=await getForecast();if(my!==tok)return;F=prep(f);drawNow();drawDay();drawFc();if(YR)drawYears()}
+  catch(e){if(my!==tok)return;$("err").hidden=false;$("err").textContent="날씨 자료를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요. ("+e.message+")";$("hu").textContent="";return}
+  YR=null;drawYears();getYears(yrs,my).then(y=>{if(my===tok){YR=y;drawYears()}});
+  PR=null;drawVer();getPrev().then(p=>{if(my===tok){PR=p;drawVer()}}).catch(()=>{if(my===tok){PR={fail:1};drawVer()}});
+}
+function prep(f){
+  const h=f.hourly,today=kDate(kNow()),i0=h.time.indexOf(today+"T00:00");
+  if(i0<24)throw new Error("시간 자료가 모자라요");
+  const di=f.daily.time.indexOf(today);return{...f,i0,di,today};
+}
+const nowX=()=>{const t=kNow();return t.getUTCHours()+t.getUTCMinutes()/60};
+
+/* ───── 지금 ───── */
+function drawNow(){
+  const c=F.current,h=F.hourly,x=nowX(),yi=F.i0-24+x,[wt,wi]=wmo(c.weather_code,c.is_day===0);
+  const yT=ip(h.temperature_2m,yi),d=c.temperature_2m-yT;
+  $("hw").textContent=`${wi} ${wt}`;$("ht").textContent=f1(c.temperature_2m)+"°";
+  const dl=$("hd");dl.className="dl "+cls(d);dl.textContent=Math.abs(d)<.05?"어제 이 시간과 같아요":`어제 이 시간보다 ${f1(Math.abs(d))}° ${d>0?"높아요":"낮아요"}`;
+  const t=kNow();$("hu").textContent=`${t.getUTCMonth()+1}월 ${t.getUTCDate()}일 (${WD[t.getUTCDay()]}) ${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())} 기준 · 어제 이 시간 ${f1(yT)}°`;
+  const cum=(from)=>{let s=0;for(let k=0;k<=Math.floor(x);k++)s+=h.precipitation[from+k]||0;return s};
+  const it=[["체감",f1(c.apparent_temperature)+"°",c.apparent_temperature-ip(h.apparent_temperature,yi),"°"],
+    ["습도",Math.round(c.relative_humidity_2m)+"%",c.relative_humidity_2m-ip(h.relative_humidity_2m,yi),"%p",0],
+    ["바람 "+dirK(c.wind_direction_10m),f1(c.wind_speed_10m)+"<small style='font-size:11px'> m/s</small>",c.wind_speed_10m-ip(h.wind_speed_10m,yi),""],
+    ["구름",Math.round(c.cloud_cover)+"%",c.cloud_cover-ip(h.cloud_cover,yi),"%p",0],
+    ["오늘 지금까지 비",f1(cum(F.i0))+"<small style='font-size:11px'> mm</small>",cum(F.i0)-cum(F.i0-24),""],
+    ["순간 돌풍",f1(c.wind_gusts_10m)+"<small style='font-size:11px'> m/s</small>",null,""]];
+  $("nowg").innerHTML=it.map(([n,v,dv,u,dg])=>`<div class="card st"><div class="n">${n}</div><div class="v">${v}</div><div class="d ${cls(dv)}">${dv==null?"&nbsp;":"어제 "+sg(dv,u,dg==null?1:dg)}</div></div>`).join("");
+}
+
+/* ───── 그래프 공통 ───── */
+const CW=560,ML=34,MR=10;
+function scale(vals,H,mt,mb,pad=1){const v=vals.filter(x=>x!=null&&!isNaN(x));let lo=Math.floor(Math.min(...v)-pad),hi=Math.ceil(Math.max(...v)+pad);if(!v.length){lo=0;hi=10}
+  const st=(hi-lo)>24?10:(hi-lo)>12?5:(hi-lo)>6?2:1;lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
+  const Y=t=>mt+(H-mt-mb)*(1-(t-lo)/(hi-lo));let g="";for(let t=lo;t<=hi+1e-9;t+=st)g+=`<line x1="${ML}" x2="${CW-MR}" y1="${Y(t)}" y2="${Y(t)}" stroke="rgba(27,32,48,${t===0?.35:.1})"/><text x="${ML-5}" y="${Y(t)+4}" text-anchor="end">${t}°</text>`;
+  return{Y,g,lo,hi}}
+const hx=h=>ML+(CW-ML-MR)*h/24;
+const hAxis=(H,mb)=>{let g="";for(let h=0;h<=24;h+=3)g+=`<line x1="${hx(h)}" x2="${hx(h)}" y1="${H-mb}" y2="${H-mb+4}" stroke="rgba(27,32,48,.3)"/><text x="${hx(h)}" y="${H-mb+16}" text-anchor="middle">${h}시</text>`;return g};
+const path=(arr,Y,from=0,to=24)=>{let d="",on=false;for(let h=Math.ceil(from);h<=to;h++){const v=arr[h];if(v==null){on=false;continue}d+=(on?"L":"M")+hx(h).toFixed(1)+" "+Y(v).toFixed(1);on=true}return d};
+function scrub(svg,fn){const mv=e=>{const r=svg.getBoundingClientRect();fn((e.clientX-r.left)/r.width*CW)};svg.onpointerdown=mv;svg.onpointermove=e=>{if(e.pointerType==="mouse"||e.buttons)mv(e)};svg.onpointerleave=e=>{if(e.pointerType==="mouse")fn(null)}}
+
+/* ───── 오늘 vs 어제 ───── */
+function drawDay(){
+  const h=F.hourly,T=h.temperature_2m,td=T.slice(F.i0,F.i0+25),yd=T.slice(F.i0-24,F.i0+1),x=nowX(),H=230,mt=12,mb=24,S=scale([...td,...yd],H,mt,mb);
+  const pr=h.precipitation.slice(F.i0,F.i0+24),pm=Math.max(1,...pr.map(v=>v||0));
+  let s=S.g+hAxis(H,mb);
+  pr.forEach((v,i)=>{if(v>0){const bh=Math.max(2,v/pm*34);s+=`<rect x="${hx(i)+2}" y="${H-mb-bh}" width="${(CW-ML-MR)/24-4}" height="${bh}" rx="2" fill="#2a78c8" opacity=".3"/>`}});
+  s+=`<path d="${path(yd,S.Y)}" fill="none" stroke="#9aa0ad" stroke-width="2.5" stroke-linejoin="round"/>`;
+  const cut=Math.floor(x),nowT=F.current.temperature_2m;
+  s+=`<path d="${path(td,S.Y,0,cut)}L${hx(x)} ${S.Y(nowT)}" fill="none" stroke="#1b2030" stroke-width="3" stroke-linejoin="round"/>`;
+  s+=`<path d="M${hx(x)} ${S.Y(nowT)}${path(td,S.Y,cut+1,24).replace(/M/g,"L")}" fill="none" stroke="#1b2030" stroke-width="2.5" stroke-dasharray="3 5" stroke-linecap="round"/>`;
+  s+=`<line x1="${hx(x)}" x2="${hx(x)}" y1="${mt}" y2="${H-mb}" stroke="#D85A30" stroke-dasharray="2 3"/><circle cx="${hx(x)}" cy="${S.Y(nowT)}" r="5" fill="#D85A30" stroke="#fff" stroke-width="2"/><circle cx="${hx(x)}" cy="${S.Y(ip(yd,x))}" r="4" fill="#9aa0ad" stroke="#fff" stroke-width="2"/>`;
+  s+=`<line id="c1h" y1="${mt}" y2="${H-mb}" stroke="#1b2030" stroke-opacity=".5" display="none"/>`;
+  $("c1").innerHTML=s;
+  const def=()=>{$("r1").innerHTML="그래프를 누르면 그 시각의 오늘·어제 기온을 볼 수 있어요. 파란 막대는 오늘 비예요.";$("c1h").setAttribute("display","none")};def();
+  scrub($("c1"),ux=>{if(ux==null)return def();const hh=Math.max(0,Math.min(24,Math.round((ux-ML)/(CW-ML-MR)*24))),a=td[hh],b=yd[hh],l=$("c1h");
+    l.removeAttribute("display");l.setAttribute("x1",hx(hh));l.setAttribute("x2",hx(hh));
+    $("r1").innerHTML=`<b>${hh}시</b> · 오늘 <b>${f1(a)}°</b>${hh>x?" (예보)":""} · 어제 ${f1(b)}° · 차이 <b class="${cls(a-b)}">${sg(a-b,"°")}</b>${pr[hh]>0?` · 비 ${f1(pr[hh])}mm`:""}`});
+  const d=F.daily,i=F.di,row=(n,k,u,dg)=>{const a=d[k][i],b=d[k][i-1];return `<tr><td>${n}</td><td><b>${f1(a)}</b>${u}</td><td>${f1(b)}${u}</td><td class="${cls(a-b)}"><b>${sg(a-b,"",dg)}</b></td></tr>`};
+  $("t1").innerHTML=`<tr><th>하루 전체</th><th>오늘</th><th>어제</th><th>차이</th></tr>`+row("최고","temperature_2m_max","°")+row("최저","temperature_2m_min","°")+row("강수량","precipitation_sum","mm");
+}
+
+/* ───── 다른 해 ───── */
+$("ysel").innerHTML=[10,20,30,50].map(n=>`<button data-n="${n}">${n}년</button>`).join("");
+const segOn=(el,v,k)=>el.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset[k]===String(v)));
+segOn($("ysel"),yrs,"n");
+$("ysel").onclick=e=>{const b=e.target.closest("button");if(!b)return;yrs=+b.dataset.n;LS.set("yrs",yrs);segOn($("ysel"),yrs,"n");const my=tok;getYears(yrs,my).then(y=>{if(my===tok){YR=y;drawYears()}})};
+function drawYears(){
+  const sv=$("c2"),H=250,mt=14,mb=26;
+  if(!F){sv.innerHTML="";return}
+  if(!YR||!YR.length){sv.innerHTML=`<text x="280" y="125" text-anchor="middle">지난 해 기록을 불러오는 중…</text>`;$("r2").textContent="";return}
+  const Y0=+F.today.slice(0,4),hr=Math.round(nowX())%24,d=F.daily,cur={y:Y0,hi:d.temperature_2m_max[F.di],lo:d.temperature_2m_min[F.di],pr:d.precipitation_sum[F.di],now:F.current.temperature_2m,cur:1};
+  const all=[...YR.map(r=>({...r,now:r.h?r.h[hr]:null})),cur],n=all.length,S=scale(all.flatMap(r=>[r.hi,r.lo]),H,mt,mb),bw=(CW-ML-MR)/n,X=i=>ML+bw*(i+.5),w=Math.max(3,Math.min(16,bw*.55));
+  const avg=k=>YR.reduce((s,r)=>s+r[k],0)/YR.length,ah=avg("hi"),al=avg("lo");
+  let s=S.g;const stp=n>32?10:n>12?5:n>6?2:1;
+  all.forEach((r,i)=>{
+    if(r.cur||r.y%stp===0)s+=`<text x="${X(i)}" y="${H-mb+16}" text-anchor="middle"${r.cur?' style="font-weight:700;fill:#D85A30"':""}>${r.cur?"올해":n>12?"'"+p2(r.y%100):r.y}</text>`;
+    if(r.pr>=1)s+=`<rect x="${X(i)-w/2}" y="${H-mb-4}" width="${w}" height="4" fill="#2a78c8" opacity=".7"/>`;
+    s+=`<rect x="${X(i)-w/2}" y="${S.Y(r.hi)}" width="${w}" height="${Math.max(2,S.Y(r.lo)-S.Y(r.hi))}" rx="${w/2}" fill="${r.cur?"#D85A30":"#c9ccd4"}"/>`;
+    if(r.now!=null)s+=`<circle cx="${X(i)}" cy="${S.Y(r.now)}" r="${Math.min(3.5,w/2.2)}" fill="${r.cur?"#fff":"#1b2030"}"${r.cur?' stroke="#1b2030" stroke-width="1.5"':""}/>`});
+  s+=`<line x1="${ML}" x2="${CW-MR}" y1="${S.Y(ah)}" y2="${S.Y(ah)}" stroke="#D85A30" stroke-opacity=".6" stroke-dasharray="4 4"/><line x1="${ML}" x2="${CW-MR}" y1="${S.Y(al)}" y2="${S.Y(al)}" stroke="#2a78c8" stroke-opacity=".6" stroke-dasharray="4 4"/>`;
+  s+=`<rect id="c2h" y="${mt}" height="${H-mt-mb}" width="${bw}" fill="#1b2030" opacity=".07" display="none"/>`;
+  sv.innerHTML=s;
+  const rank=YR.filter(r=>r.hi>cur.hi).length+1,nowAvg=YR.filter(r=>r.h).reduce((s,r,_,a)=>s+r.h[hr]/a.length,0),rainy=YR.filter(r=>r.pr>=1).length;
+  const md=F.today.slice(5).split("-").map(Number),def=()=>{$("c2h").setAttribute("display","none");
+    $("r2").innerHTML=`${md[0]}월 ${md[1]}일, 지난 ${YR.length}년(${YR[0].y}~${YR[YR.length-1].y}) 평균: 최고 ${f1(ah)}° · 최저 ${f1(al)}° (점선)\n`+
+      `올해 최고 <b>${f1(cur.hi)}°</b>는 평균보다 <b class="${cls(cur.hi-ah)}">${sg(cur.hi-ah,"°")}</b> · ${YR.length+1}해 중 <b>${rank}번째</b>로 따뜻해요\n`+
+      `지금(${hr}시) <b>${f1(cur.now)}°</b>는 예년 이 시각보다 <b class="${cls(cur.now-nowAvg)}">${sg(cur.now-nowAvg,"°")}</b> · 이날 비 온 해 ${rainy}/${YR.length}`};def();
+  scrub(sv,ux=>{if(ux==null)return def();const i=Math.max(0,Math.min(n-1,Math.floor((ux-ML)/bw))),r=all[i],hl=$("c2h");hl.removeAttribute("display");hl.setAttribute("x",ML+bw*i);
+    $("r2").innerHTML=`<b>${r.cur?"올해":r.y+"년"} ${md[0]}월 ${md[1]}일</b> · 최고 <b>${f1(r.hi)}°</b> · 최저 <b>${f1(r.lo)}°</b> · ${hr}시 ${f1(r.now)}° · 비 ${f1(r.pr)}mm`+
+      (r.cur?"":`\n올해와 차이: 최고 <b class="${cls(cur.hi-r.hi)}">${sg(cur.hi-r.hi,"°")}</b> · 최저 <b class="${cls(cur.lo-r.lo)}">${sg(cur.lo-r.lo,"°")}</b> · ${hr}시 <b class="${cls(cur.now-r.now)}">${sg(cur.now-r.now,"°")}</b>`)});
+}
+
+/* ───── 예보 ───── */
+$("msel").innerHTML=MODELS.map(m=>`<button data-m="${m[0]}">${m[1]}</button>`).join("");segOn($("msel"),model,"m");
+$("msel").onclick=e=>{const b=e.target.closest("button");if(!b)return;model=b.dataset.m;LS.set("model",model);segOn($("msel"),model,"m");load()};
+function drawFc(){
+  const h=F.hourly,s0=F.i0+Math.floor(nowX());let o="";
+  for(let i=s0;i<Math.min(h.time.length,s0+36);i++){const hh=+h.time[i].slice(11,13),[,ic]=wmo(h.weather_code[i],h.is_day[i]===0),pp=h.precipitation_probability[i],mm=h.precipitation[i];
+    o+=`<div class="hr${hh===0?" d0":""}"><div class="t">${i===s0?"지금":hh===0?"내일":hh+"시"}</div><div class="i">${ic}</div><div class="v">${Math.round(h.temperature_2m[i])}°</div><div class="p">${mm>=.1?f1(mm)+"mm":pp>=30?pp+"%":""}</div></div>`}
+  $("hrs").innerHTML=o;
+  const d=F.daily,idx=d.time.map((_,i)=>i).filter(i=>i>=F.di),lo=Math.min(...idx.map(i=>d.temperature_2m_min[i])),hi=Math.max(...idx.map(i=>d.temperature_2m_max[i]));
+  $("days").innerHTML=idx.map(i=>{const t=new Date(d.time[i]+"T00:00Z"),a=d.temperature_2m_min[i],b=d.temperature_2m_max[i],[,ic]=wmo(d.weather_code[i]),pp=d.precipitation_probability_max[i],mm=d.precipitation_sum[i];
+    return `<div class="dy"><div>${i===F.di?"<b>오늘</b>":`${t.getUTCDate()}일 ${WD[t.getUTCDay()]}`}</div><div style="font-size:18px">${ic}</div><div class="p">${mm>=1?Math.round(mm)+"mm":pp>=30?pp+"%":""}</div><div class="lo">${Math.round(a)}°</div><div class="bar"><i style="left:${(a-lo)/(hi-lo)*100}%;right:${(hi-b)/(hi-lo)*100}%"></i></div><div class="hi">${Math.round(b)}°</div></div>`}).join("");
+}
+
+/* ───── 예보는 맞았나 ───── */
+$("vsel").innerHTML=`<button data-v="0">어제</button><button data-v="1">오늘</button>`;segOn($("vsel"),vday,"v");
+$("vsel").onclick=e=>{const b=e.target.closest("button");if(!b)return;vday=+b.dataset.v;segOn($("vsel"),vday,"v");drawVer()};
+function drawVer(){
+  const sv=$("c3"),H=230,mt=12,mb=24,msg=t=>{sv.innerHTML=`<text x="280" y="115" text-anchor="middle">${t}</text>`;$("t3").innerHTML="";$("r3").textContent=""};
+  if(!PR)return msg("지난 예보 기록을 불러오는 중…");if(PR.fail)return msg("지난 예보 기록을 불러오지 못했어요");
+  const h=PR.hourly,o=vday*24,end=vday?Math.floor(nowX()):23,K=["","_previous_day1","_previous_day2","_previous_day3"];
+  const T=K.map(k=>(h["temperature_2m"+k]||[]).slice(o,o+25)),P=K.map(k=>(h["precipitation"+k]||[]).slice(o,o+24));
+  if(!T[0].some(v=>v!=null))return msg("이 예보 모델은 지난 예보 기록이 없어요");
+  const S=scale(T.flat(),H,mt,mb);let s=S.g+hAxis(H,mb);
+  [[3,"#b9a3d8","4 4",2],[2,"#2a78c8","5 4",2],[1,"#D85A30","",2.5],[0,"#1b2030","",3]].forEach(([k,c,da,w])=>{s+=`<path d="${path(T[k],S.Y,0,k?24:end)}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round"${da?` stroke-dasharray="${da}"`:""}/>`});
+  if(vday)s+=`<line x1="${hx(nowX())}" x2="${hx(nowX())}" y1="${mt}" y2="${H-mb}" stroke="#D85A30" stroke-dasharray="2 3"/>`;
+  sv.innerHTML=s;
+  const st=k=>{let e=0,b=0,n=0,mx=0;for(let i=0;i<=end;i++){const a=T[0][i],f=T[k][i];if(a==null||f==null)continue;e+=Math.abs(f-a);b+=f-a;mx=Math.max(mx,Math.abs(f-a));n++}return n?{mae:e/n,bias:b/n,mx}:null};
+  const sum=k=>{let s=0,n=0;for(let i=0;i<=Math.min(23,end);i++)if(P[k][i]!=null){s+=P[k][i];n++}return n?s:null},pa=sum(0);
+  $("t3").innerHTML=`<tr><th>${vday?"오늘 지금까지":"어제 하루"}</th><th>평균 오차</th><th>치우침</th><th>가장 틀린 때</th><th>비</th></tr><tr><td>실제</td><td>–</td><td>–</td><td>–</td><td><b>${f1(pa)}</b>mm</td></tr>`+
+    [1,2,3].map(k=>{const r=st(k),p=sum(k);return r?`<tr><td>${["","하루","이틀","사흘"][k]} 전 예보</td><td><b>${f1(r.mae)}°</b></td><td class="${cls(r.bias)}">${sg(r.bias,"°")}</td><td>${f1(r.mx)}°</td><td>${f1(p)}mm</td></tr>`:""}).join("");
+  const r1=st(1);$("r3").innerHTML=r1?`하루 전 예보는 시간마다 평균 <b>${f1(r1.mae)}°</b> 빗나갔고, 전체로는 실제보다 <b class="${cls(r1.bias)}">${f1(Math.abs(r1.bias))}° ${r1.bias>0?"높게":"낮게"}</b> 봤어요.\n'실제'는 관측소 값이 아니라 예보 모델이 관측을 반영해 다시 계산한 값이에요.`:"";
+}
+
+/* ───── 위성 · 레이더 ───── */
+const KB="https://www.weather.go.kr/w/repositary/image/";
+const stamp=(ms,kst)=>{const t=new Date(ms+(kst?KST:0));return t.getUTCFullYear()+p2(t.getUTCMonth()+1)+p2(t.getUTCDate())+p2(t.getUTCHours())+p2(t.getUTCMinutes())};
+const SAT=[["dn","한반도",10,ms=>`${KB}sat/gk2a/KO/gk2a_ami_le1b_rgb-s-daynight_ko020lc_${stamp(ms)}.png`,"천리안 2A호 낮·밤 합성 영상 (10분 간격)"],
+  ["ir","적외",10,ms=>`${KB}sat/gk2a/KO/gk2a_ami_le1b_ir105_ko020lc_${stamp(ms)}.png`,"천리안 2A호 적외 영상 · 밝을수록 높고 차가운 구름"],
+  ["ea","동아시아",10,ms=>`${KB}sat/gk2a/EA/gk2a_ami_le1b_ir105_ea020lc_${stamp(ms)}.thn.png`,"천리안 2A호 동아시아 적외 영상"],
+  ["rd","레이더",5,ms=>`${KB}rdr/img/RDR_CMP_WRC_${stamp(ms,1)}.png`,"기상청 레이더 합성 · 지금 비가 오는 곳 (5분 간격)"]];
+let sk=LS.get("sat","dn"),frames=[],sTok=0,sTm=0;if(!SAT.some(s=>s[0]===sk))sk="dn";
+$("ssel").innerHTML=SAT.map(s=>`<button data-s="${s[0]}">${s[1]}</button>`).join("");
+$("ssel").onclick=e=>{const b=e.target.closest("button");if(!b)return;sk=b.dataset.s;LS.set("sat",sk);satLoad()};
+const probe=u=>new Promise(r=>{const i=new Image();i.onload=()=>r(i.naturalWidth>50);i.onerror=()=>r(false);i.src=u});
+async function satLoad(){
+  const my=++sTok,S=SAT.find(s=>s[0]===sk),step=S[2]*6e4;segOn($("ssel"),sk,"s");stop();$("stm").textContent="불러오는 중…";$("r4").textContent=S[4];
+  let t=Math.floor((Date.now()-4*6e4)/step)*step,ok=false;
+  for(let k=0;k<9&&!ok;k++){ok=await probe(S[3](t));if(my!==sTok)return;if(!ok)t-=step}
+  if(!ok){$("stm").textContent="영상을 불러오지 못했어요";$("simg").removeAttribute("src");$("r4").innerHTML=`기상청 서버에서 영상을 받지 못했어요. <a href="https://www.weather.go.kr/w/image/sat/gk2a.do" target="_blank" rel="noopener">기상청에서 직접 보기</a>`;return}
+  frames=[];for(let i=11;i>=0;i--)frames.push(t-i*step);$("srng").value=11;satShow(11);
+}
+function satShow(i){const S=SAT.find(s=>s[0]===sk),ms=frames[i];if(ms==null)return;$("simg").src=S[3](ms);const t=new Date(ms+KST),ago=Math.round((Date.now()-ms)/6e4);
+  $("stm").textContent=`${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())} · ${ago<60?ago+"분 전":Math.floor(ago/60)+"시간 "+ago%60+"분 전"}`}
+$("simg").onerror=()=>{$("stm").textContent="이 시각 영상은 없어요"};
+$("srng").oninput=()=>{stop();satShow(+$("srng").value)};
+function stop(){clearInterval(sTm);sTm=0;$("splay").textContent="▶"}
+$("splay").onclick=async()=>{if(sTm)return stop();if(!frames.length)return;const S=SAT.find(s=>s[0]===sk),my=sTok;$("splay").textContent="…";
+  await Promise.all(frames.map(ms=>probe(S[3](ms))));if(my!==sTok)return;$("splay").textContent="❚❚";let i=0;
+  sTm=setInterval(()=>{$("srng").value=i;satShow(i);i=(i+1)%(frames.length+3);if(i>=frames.length)i=i===frames.length+2?0:i},450)};
+
+$("foot").innerHTML=`자료: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (예보·지난 예보 기록·1940년부터의 재분석 기록) · 위성·레이더 영상: <a href="https://www.weather.go.kr/" target="_blank" rel="noopener">기상청</a> · 장소 검색: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a><br>`+
+  `'자동'은 일본 기상청(JMA) 모델을 써요. 지난 해 기록은 관측소 값이 아니라 약 10km 격자로 다시 계산한 값(ERA5)이라 실제 관측과 1~2° 다를 수 있어요.<br><a href="./">일출·일몰 그래프로 가기</a>`;
+
+locUI();load();satLoad();
+let lastLoad=Date.now();
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-lastLoad>6e5){lastLoad=Date.now();load();satLoad()}});
+setInterval(()=>{if(!document.hidden&&F){if(F.today!==kDate(kNow())){lastLoad=Date.now();load()}else{drawNow();drawDay()}}},6e4);
+</script>
+</body>
+</html>
