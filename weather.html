@@ -220,21 +220,23 @@ const cls=v=>v==null||isNaN(v)||Math.abs(v)<.05?"same":v>0?"hot":"cold";
 const ip=(a,x)=>{const i=Math.floor(x),f=x-i,p=a[i],q=a[Math.min(a.length-1,i+1)];return p==null?q:q==null?p:p+(q-p)*f};
 
 /* ───── 자료 받기 ───── */
-const MODELS=[["auto","자동"],["ecmwf_ifs025","유럽"],["gfs_seamless","미국"],["icon_seamless","독일"]];
-let model=LS.get("model","auto"),yrs=LS.get("yrs",10),vday=0,F=null,PR=null,YR=null,tok=0;
+let kkey=LS.get("key","");
+const MODELS0=[["auto","자동"],["ecmwf_ifs025","유럽"],["gfs_seamless","미국"],["icon_seamless","독일"]],getModels=()=>kkey?[["kma","기상청"],...MODELS0]:MODELS0;
+let MODELS=getModels(),model=LS.get("model","auto"),yrs=LS.get("yrs",10),vday=0,F=null,PR=null,YR=null,tok=0;
 if(!MODELS.some(m=>m[0]===model))model="auto";
 const HV="temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,is_day";
+const omModel=()=>model==="auto"||model==="kma"?"":model;
 async function getJ(u){const r=await fetch(u);const j=await r.json().catch(()=>null);if(!r.ok||!j||j.error)throw new Error(j&&j.reason||("HTTP "+r.status));return j}
 async function getForecast(){
   const q=`/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&wind_speed_unit=ms&past_days=1&forecast_days=7`+
     `&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day`+
-    `&hourly=${HV}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max`+(model==="auto"?"":"&models="+model);
+    `&hourly=${HV}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max`+(omModel()?"&models="+omModel():"");
   /* 본 서버가 막히면(하루 한도 등) 같은 자료를 주는 보조 서버로 한 번 더 */
   try{return await getJ("https://api.open-meteo.com"+q)}catch(e){return await getJ("https://previous-runs-api.open-meteo.com"+q)}
 }
 async function getPrev(){
   const v=["temperature_2m","precipitation"].flatMap(k=>[k,k+"_previous_day1",k+"_previous_day2",k+"_previous_day3"]).join(",");
-  return getJ(`https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&past_days=1&forecast_days=1&hourly=${v}`+(model==="auto"?"":"&models="+model));
+  return getJ(`https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=Asia%2FSeoul&past_days=1&forecast_days=1&hourly=${v}`+(omModel()?"&models="+omModel():""));
 }
 async function getYears(n,my){
   const t=kNow(),Y=t.getUTCFullYear(),md=kDate(t).slice(5),key=`a.${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}.${md}`;
@@ -248,9 +250,48 @@ async function getYears(n,my){
   LS.set(key,C);return pickY(C,Y,n)}
 const pickY=(C,Y,n)=>{const o=[];for(let y=Y-n;y<Y;y++)if(C[y])o.push({y,hi:C[y][0],lo:C[y][1],pr:C[y][2],h:C[y][3]});return o};
 
+/* ───── 기상청 실황·단기예보 (공공데이터포털 키가 있을 때) ───── */
+function grid(la,lo){const RE=6371.00877/5,D=Math.PI/180,s1=30*D,s2=60*D,T=x=>Math.tan(Math.PI/4+x/2);
+  const sn=Math.log(Math.cos(s1)/Math.cos(s2))/Math.log(T(s2)/T(s1)),sf=Math.pow(T(s1),sn)*Math.cos(s1)/sn,ro=RE*sf/Math.pow(T(38*D),sn),ra=RE*sf/Math.pow(T(la*D),sn),th=(lo-126)*D*sn;
+  return[Math.floor(ra*Math.sin(th)+43.5),Math.floor(ro-ra*Math.cos(th)+136.5)]}
+async function kma(op,ms,rows){
+  const st=stamp(ms,1),[nx,ny]=grid(loc.lat,loc.lon),k=kkey.includes("%")?kkey:encodeURIComponent(kkey);
+  const r=await fetch(`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/${op}?serviceKey=${k}&pageNo=1&numOfRows=${rows}&dataType=JSON&base_date=${st.slice(0,8)}&base_time=${st.slice(8)}&nx=${nx}&ny=${ny}`),tx=await r.text();
+  let j=null;try{j=JSON.parse(tx)}catch(_){}
+  const h=j&&j.response&&j.response.header;
+  if(!h){const m=j&&j.OpenAPI_ServiceResponse?j.OpenAPI_ServiceResponse.cmmMsgHeader.returnAuthMsg:(tx.match(/<returnAuthMsg>([^<]*)/)||tx.match(/<errMsg>([^<]*)/)||[])[1];throw new Error(m||("기상청 응답 오류 "+r.status))}
+  if(h.resultCode!=="00")throw new Error(h.resultMsg||"자료 없음");return j.response.body.items.item}
+const pcp=v=>{if(v==null||/없음/.test(v))return 0;if(/미만/.test(v))return .5;const m=String(v).match(/[\d.]+/);return m?+m[0]:0};
+const kcode=(sky,pty)=>pty===1||pty===5?63:pty===2||pty===6?67:pty===3||pty===7?73:pty===4?80:sky===1?0:sky===3?2:sky===4?3:null;
+async function kmaOverlay(f){
+  const HR=36e5,b0=Math.floor((Date.now()-12*6e4)/HR)*HR;
+  const nc=async ms=>{const o={};(await kma("getUltraSrtNcst",ms,20)).forEach(i=>{const v=+i.obsrValue;o[i.category]=isNaN(v)||v<-900?null:v});if(o.T1H==null)throw new Error("실황 없음");return o};
+  let cur;try{cur=await nc(b0)}catch(e){if(/등록|키|KEY|인증/i.test(e.message))throw e;cur=await nc(b0-HR)}
+  const vb=Math.floor((Date.now()+KST-15*6e4-2*HR)/(3*HR))*3*HR+2*HR-KST;
+  let it;try{it=await kma("getVilageFcst",vb,1500)}catch(_){it=await kma("getVilageFcst",vb-3*HR,1500)}
+  const h=f.hourly,ix={};h.time.forEach((t,i)=>ix[t]=i);const sky=[],pty=[],got=new Set(),ext={};
+  it.forEach(i=>{const d=i.fcstDate,day=`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`,k=ix[`${day}T${i.fcstTime.slice(0,2)}:00`],v=i.fcstValue,c=i.category;
+    if(c==="TMX"||c==="TMN"){(ext[day]=ext[day]||{})[c]=+v;return}if(k==null)return;
+    if(c==="TMP"){const dv=+v-h.temperature_2m[k];h.temperature_2m[k]=+v;if(h.apparent_temperature[k]!=null)h.apparent_temperature[k]+=dv;got.add(k)}
+    else if(c==="POP")h.precipitation_probability[k]=+v;else if(c==="PCP")h.precipitation[k]=pcp(v);else if(c==="REH")h.relative_humidity_2m[k]=+v;else if(c==="WSD")h.wind_speed_10m[k]=+v;else if(c==="SKY")sky[k]=+v;else if(c==="PTY")pty[k]=+v});
+  got.forEach(k=>{const w=kcode(sky[k],pty[k]);if(w!=null)h.weather_code[k]=w});
+  const d=f.daily;d.time.forEach((day,di)=>{const k0=ix[day+"T00:00"];if(k0==null)return;const ks=[];for(let k=k0;k<k0+24;k++)if(got.has(k))ks.push(k);
+    const e=ext[day]||{},full=ks.length===24;if(e.TMX!=null)d.temperature_2m_max[di]=e.TMX;else if(full)d.temperature_2m_max[di]=Math.max(...ks.map(k=>h.temperature_2m[k]));
+    if(e.TMN!=null)d.temperature_2m_min[di]=e.TMN;else if(full)d.temperature_2m_min[di]=Math.min(...ks.map(k=>h.temperature_2m[k]));
+    if(full){d.precipitation_probability_max[di]=Math.max(...ks.map(k=>h.precipitation_probability[k]||0));d.precipitation_sum[di]=ks.reduce((a,k)=>a+(h.precipitation[k]||0),0);
+      const dayk=ks.slice(6,22).map(k=>h.weather_code[k]),wet=dayk.filter(w=>w>3);d.weather_code[di]=wet.length>=2?Math.max(...wet):dayk.sort((a,b)=>a-b)[8]}});
+  const c=f.current;f.omCur={...c};c.apparent_temperature+=cur.T1H-c.temperature_2m;c.temperature_2m=cur.T1H;
+  if(cur.REH!=null)c.relative_humidity_2m=cur.REH;if(cur.WSD!=null)c.wind_speed_10m=cur.WSD;if(cur.VEC!=null)c.wind_direction_10m=cur.VEC;if(cur.RN1!=null)c.precipitation=cur.RN1;
+  const pw=kcode(0,cur.PTY);if(pw!=null)c.weather_code=pw;else if(c.weather_code>3)c.weather_code=3;
+  f.kma={base:b0,days:Object.keys(ext).length};
+  try{f.kmaY=await nc(b0-24*HR)}catch(_){try{f.kmaY=await nc(b0-23*HR)}catch(_){}}
+  return f}
+
 async function load(){
   const my=++tok;$("err").hidden=true;$("hu").textContent="불러오는 중…";
-  try{const f=await getForecast();if(my!==tok)return;F=prep(f);drawNow();drawDay();drawFc();if(YR)drawYears()}
+  try{let f=await getForecast();if(my!==tok)return;
+    if(model==="kma"&&kkey){try{f=await kmaOverlay(f)}catch(e){$("err").hidden=false;$("err").textContent="기상청 자료를 받지 못해서 모델 예보로 보여드려요. ("+e.message+")"}if(my!==tok)return}
+    F=prep(f);drawNow();drawDay();drawFc();if(YR)drawYears()}
   catch(e){if(my!==tok)return;$("err").hidden=false;$("err").textContent="날씨 자료를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요. ("+e.message+")";$("hu").textContent="";return}
   YR=null;drawYears();getYears(yrs,my).then(y=>{if(my===tok){YR=y;drawYears()}});
   PR=null;drawVer();getPrev().then(p=>{if(my===tok){PR=p;drawVer()}}).catch(()=>{if(my===tok){PR={fail:1};drawVer()}});
@@ -265,15 +306,16 @@ const nowX=()=>{const t=kNow();return t.getUTCHours()+t.getUTCMinutes()/60};
 /* ───── 지금 ───── */
 function drawNow(){
   const c=F.current,h=F.hourly,x=nowX(),yi=F.i0-24+x,[wt,wi]=wmo(c.weather_code,c.is_day===0);
-  const yT=ip(h.temperature_2m,yi),d=c.temperature_2m-yT;
+  const KY=F.kmaY,ref=F.kma&&!KY?F.omCur:c,dv=(k,kc)=>KY&&kc?(KY[kc]==null?null:c[k]-KY[kc]):ref[k]-ip(h[k],yi);
+  const d=dv("temperature_2m","T1H"),yT=c.temperature_2m-d;
   $("hw").textContent=`${wi} ${wt}`;$("ht").textContent=f1(c.temperature_2m)+"°";
   const dl=$("hd");dl.className="dl "+cls(d);dl.textContent=Math.abs(d)<.05?"어제 이 시간과 같아요":`어제 이 시간보다 ${f1(Math.abs(d))}° ${d>0?"높아요":"낮아요"}`;
-  const t=kNow();$("hu").textContent=`${t.getUTCMonth()+1}월 ${t.getUTCDate()}일 (${WD[t.getUTCDay()]}) ${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())} 기준 · 어제 이 시간 ${f1(yT)}°`;
+  const t=kNow();$("hu").textContent=`${t.getUTCMonth()+1}월 ${t.getUTCDate()}일 (${WD[t.getUTCDay()]}) ${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())} 기준 · 어제 이 시간 ${f1(yT)}°`+(F.kma?(KY?" · 기상청 실황":" · 기상청 실황 (어제와의 차이는 모델 기준)"):"");
   const cum=(from)=>{let s=0;for(let k=0;k<=Math.floor(x);k++)s+=h.precipitation[from+k]||0;return s};
-  const it=[["체감",f1(c.apparent_temperature)+"°",c.apparent_temperature-ip(h.apparent_temperature,yi),"°"],
-    ["습도",Math.round(c.relative_humidity_2m)+"%",c.relative_humidity_2m-ip(h.relative_humidity_2m,yi),"%p",0],
-    ["바람 "+dirK(c.wind_direction_10m),f1(c.wind_speed_10m)+"<small style='font-size:11px'> m/s</small>",c.wind_speed_10m-ip(h.wind_speed_10m,yi),""],
-    ["구름",Math.round(c.cloud_cover)+"%",c.cloud_cover-ip(h.cloud_cover,yi),"%p",0],
+  const it=[["체감",f1(c.apparent_temperature)+"°",KY?d:dv("apparent_temperature"),"°"],
+    ["습도",Math.round(c.relative_humidity_2m)+"%",dv("relative_humidity_2m","REH"),"%p",0],
+    ["바람 "+dirK(c.wind_direction_10m),f1(c.wind_speed_10m)+"<small style='font-size:11px'> m/s</small>",dv("wind_speed_10m","WSD"),""],
+    ["구름",Math.round(c.cloud_cover)+"%",dv("cloud_cover"),"%p",0],
     ["오늘 지금까지 비",f1(cum(F.i0))+"<small style='font-size:11px'> mm</small>",cum(F.i0)-cum(F.i0-24),""],
     ["순간 돌풍",f1(c.wind_gusts_10m)+"<small style='font-size:11px'> m/s</small>",null,""]];
   $("nowg").innerHTML=it.map(([n,v,dv,u,dg])=>`<div class="card st"><div class="n">${n}</div><div class="v">${v}</div><div class="d ${cls(dv)}">${dv==null?"&nbsp;":"어제 "+sg(dv,u,dg==null?1:dg)}</div></div>`).join("");
@@ -343,7 +385,7 @@ function drawYears(){
 }
 
 /* ───── 예보 ───── */
-$("msel").innerHTML=MODELS.map(m=>`<button data-m="${m[0]}">${m[1]}</button>`).join("");segOn($("msel"),model,"m");
+const mselUI=()=>{MODELS=getModels();if(!MODELS.some(m=>m[0]===model))model="auto";$("msel").innerHTML=MODELS.map(m=>`<button data-m="${m[0]}">${m[1]}</button>`).join("");segOn($("msel"),model,"m")};mselUI();
 $("msel").onclick=e=>{const b=e.target.closest("button");if(!b)return;model=b.dataset.m;LS.set("model",model);segOn($("msel"),model,"m");load()};
 function drawFc(){
   const h=F.hourly,s0=F.i0+Math.floor(nowX());let o="";
@@ -403,7 +445,12 @@ $("splay").onclick=async()=>{if(sTm)return stop();if(!frames.length)return;const
   sTm=setInterval(()=>{$("srng").value=i;satShow(i);i=(i+1)%(frames.length+3);if(i>=frames.length)i=i===frames.length+2?0:i},450)};
 
 $("foot").innerHTML=`자료: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (예보·지난 예보 기록·1940년부터의 재분석 기록) · 위성·레이더 영상: <a href="https://www.weather.go.kr/" target="_blank" rel="noopener">기상청</a> · 장소 검색: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a><br>`+
-  `'자동'은 일본 기상청(JMA) 모델을 써요. 지난 해 기록은 관측소 값이 아니라 약 10km 격자로 다시 계산한 값(ERA5)이라 실제 관측과 1~2° 다를 수 있어요.<br><a href="./">일출·일몰 그래프로 가기</a>`;
+  `'자동'은 일본 기상청(JMA) 모델을 써요. '기상청'은 지금 값과 3~4일 예보만 기상청 자료이고, 어제·지난 해·그 뒤 날짜는 모델 값이에요. 지난 해 기록은 관측소 값이 아니라 약 10km 격자로 다시 계산한 값(ERA5)이라 실제 관측과 1~2° 다를 수 있어요.<br><a href="./">일출·일몰 그래프로 가기</a>`+
+  `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">기상청 자료 쓰기 (키 설정)</summary><div style="margin-top:8px">공공데이터포털(data.go.kr)에서 '기상청_단기예보 조회서비스' 활용신청 후 받은 인증키를 붙여 넣으세요. 키는 이 기기에만 저장돼요.<br>`+
+  `<input id="kin" type="password" autocomplete="off" placeholder="인증키" style="width:100%;margin:8px 0"><button id="ksave">저장</button> <button id="kdel">지우기</button> <span id="kst"></span></div></details>`;
+$("kin").value=kkey;$("kst").textContent=kkey?"저장된 키가 있어요":"";
+$("ksave").onclick=()=>{kkey=$("kin").value.trim();LS.set("key",kkey);if(kkey){model="kma";LS.set("model",model)}mselUI();$("kst").textContent=kkey?"저장했어요. 위쪽에 오류 문구가 없으면 기상청 자료로 바뀐 거예요.":"";load();window.scrollTo(0,0)};
+$("kdel").onclick=()=>{kkey="";$("kin").value="";LS.set("key","");mselUI();LS.set("model",model);$("kst").textContent="지웠어요";load()};
 
 locUI();load();satLoad();
 let lastLoad=Date.now();
