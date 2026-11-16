@@ -91,6 +91,17 @@ svg text{font-size:12px;fill:var(--sub);font-family:inherit}
 .pn{display:block;width:91%;margin:4px 0 0 6.667%;padding:0;border:0;background:none;accent-color:var(--text);height:22px}
 .moon .d{flex:1;text-align:left;font-size:12px}
 .moon .v{font-size:16px;margin:0}
+.mh{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.mh[hidden]{display:none}
+.mh i,.mg i{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.mh.on{color:#1b2030;border-color:transparent}
+.t .d.g{font-weight:600;margin-top:1px}
+.mgc{grid-column:1/-1;min-width:0}
+.mg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 14px;margin-top:6px;font-size:12px;font-variant-numeric:tabular-nums;text-align:left}
+.mg .h{font-size:11px;color:var(--sub)}
+.mg span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.mg b{margin-left:auto}
+.mg em{font-style:normal;color:var(--sub);font-size:11px;min-width:26px;text-align:right}
 .mapb{flex:none;padding:0 9px;height:34px;font-size:12px;font-weight:600}
 .col.lc{width:54px}.col.ln{width:72px}.col.lt{width:96px}
 .col.lc .it,.col.ln .it,.col.lt .it{font-size:13px;overflow:hidden;text-overflow:ellipsis;padding:0 3px}
@@ -105,15 +116,16 @@ svg text{font-size:12px;fill:var(--sub);font-family:inherit}
   <div class="row" id="lrow"><select id="sc" aria-label="대륙"></select><select id="sn" aria-label="나라"></select><select id="sct" aria-label="도시"></select><button class="mapb" id="mapb">지도</button><button class="mapb" id="gpsb">현위치</button></div>
   <div class="row" id="trow"><div class="wheel" id="wheel"><i class="hl"></i></div><button class="mapb" id="td">지금</button></div>
   <div class="mapsheet" id="mapsheet"><div class="zw" id="mapw"><svg id="mapsvg" viewBox="0 0 360 180"></svg></div><div class="mrow"><div class="read">지도를 누르면 그 좌표로 이동해요. 점을 누르면 그 도시로 이동해요.</div><button class="dstb" id="dstb" hidden></button></div><div class="mtip" id="mtip" hidden></div><div class="mzl" id="mzl" hidden></div><div class="read" id="locnote" hidden></div></div>
-  <div class="hero"><div class="lab" id="lab"></div><div class="big" id="cd"></div><div class="note" id="note"></div></div>
+  <div class="hero"><div class="lab" id="lab"></div><div class="big" id="cd"></div><div class="note" id="note"></div><div class="mh" id="mh" hidden></div></div>
   <div class="cvo"><div class="zw" id="cvw"><div class="cv"><canvas id="cv"></canvas><svg id="ch" viewBox="0 0 600 606"></svg><div class="tip" id="tip" hidden></div></div></div><div class="ax" id="ax"></div></div>
   <input type="range" class="pn" id="pn" hidden min="0" max="732" step="1" value="366" aria-label="그래프 좌우 이동">
   <div class="read" id="rdo"></div>
   <div class="sheet" id="sheet">
     <button class="hdl" id="hdl" aria-label="자세히 열기 또는 닫기"></button>
-    <div class="two"><div class="t"><div class="n">일출</div><div class="v" id="rv"></div><div class="d" id="rvd"></div></div><i class="dv"></i><div class="t"><div class="n">일몰</div><div class="v" id="sv"></div><div class="d" id="svd"></div></div></div>
+    <div class="two"><div class="t"><div class="n">일출</div><div class="v" id="rv"></div><div class="d" id="rvd"></div><div class="d g" id="rgd"></div></div><i class="dv"></i><div class="t"><div class="n">일몰</div><div class="v" id="sv"></div><div class="d" id="svd"></div><div class="d g" id="sgd"></div></div></div>
     <div class="more">
       <div class="grid">
+        <div class="card mgc"><div class="n" style="font-size:12px;color:var(--sub)">매직아워 · 골든 고도 −4°~6° · 블루 −6°~−4°</div><div class="mg" id="mg"></div></div>
         <div class="card t"><div class="n" id="avl">현재 태양 고도</div><div class="v" id="av"></div><div class="d" id="avd"></div></div>
         <div class="card t"><div class="n">최고 고도 (그날 하루 중)</div><div class="v" id="nv"></div><div class="d" id="nvd"></div></div>
         <div class="card moon"><svg id="moon" width="44" height="44" viewBox="0 0 56 56"></svg><div class="d" id="mnd"></div><div class="v" id="mnm"></div></div>
@@ -155,6 +167,16 @@ function ev(y,m,d){
 function evE(e){let v=cache.get(e);if(!v){const t=new Date(e*864e5);v={...ev(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate()),e,y:t.getUTCFullYear(),m:t.getUTCMonth(),d:t.getUTCDate()};cache.set(e,v)}return v}
 function tw(v,a){const c=(Math.sin(a*R)-Math.sin(lat*R)*Math.sin(v.dec))/(Math.cos(lat*R)*Math.cos(v.dec));return Math.abs(c)>1?null:4*D*Math.acos(c)}
 const altAt=(v,t)=>Math.asin(Math.max(-1,Math.min(1,Math.sin(lat*R)*Math.sin(v.dec)+Math.cos(lat*R)*Math.cos(v.dec)*Math.cos((t-v.noon)/4*R))))*D;
+/* 매직아워: 골든 -4°~6°, 블루 -6°~-4° */
+const GA=6,BA=-4,BB=-6,GC="#ffc94a",BC="#7fb0ff";
+function hx(v,a){const c=(Math.sin(a*R)-Math.sin(lat*R)*Math.sin(v.dec))/(Math.cos(lat*R)*Math.cos(v.dec));return c>=1?0:c<=-1?720:4*D*Math.acos(c)}
+function magic(v){const g=hx(v,GA),b=hx(v,BA),c=hx(v,BB),n=v.noon;return [["블루아워",n-c,n-b],["골든아워",n-b,n-g],["골든아워",n+g,n+b],["블루아워",n+b,n+c]]}
+const mhL=a=>a>=BA&&a<=GA?" · 골든아워":a>=BB&&a<BA?" · 블루아워":"";
+const mhR=m=>m[2]-m[1]<.5?"—":hm(m[1])+"–"+hm(m[2]);
+function magicNow(e,now){const L=[];
+  for(let d=-1;d<=3;d++){const w=evE(e+d),b=w.e*864e5-w.off*6e4;magic(w).forEach(m=>{if(m[2]-m[1]<.5)return;const s=b+m[1]*6e4,t=b+m[2]*6e4,p=L[L.length-1];if(p&&p[0]===m[0]&&s-p[2]<6e4)p[2]=Math.max(p[2],t);else L.push([m[0],s,t])})}
+  const c=L.find(x=>x[2]>now);return c?{n:c[0],on:c[1]<=now,t:c[1]<=now?c[2]:c[1]}:null}
+const left=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h>=24?Math.floor(h/24)+"일 "+h%24+"시간":h?h+"시간 "+p2(m)+"분":m+"분 "+p2(s%60)+"초"};
 const phaseL=a=>a>=-0.833?"낮":a>=-6?"환한 어스름":a>=-12?"짙은 어스름":a>=-18?"깊은 어스름":"밤";
 
 /* 하늘색: 보라 없이 검푸른 밤 → 강청색 → 주황 → 하늘색 → 흰색 */
@@ -225,8 +247,9 @@ function build(){
   data.forEach((v,i)=>{if(v.d===1){const x=(i*ppd).toFixed(1);
     h+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${H-mb}" stroke="rgba(255,255,255,${v.m===0?.5:.2})"/><text x="${+x+4}" y="${H-5}">${v.m+1}월</text>`;
     if(v.m===0)h+=`<text x="${+x+4}" y="${mt-7}" style="font-weight:700;fill:var(--text)">${v.y}년</text>`}});
-  const seg=k=>{let d="",on=false,py=0;data.forEach((v,i)=>{if(v.pol){on=false;return}const y=Yy(w24(v[k]));d+=(on&&Math.abs(y-py)<plotH/2?"L":"M")+(i*ppd).toFixed(1)+" "+y.toFixed(1);py=y;on=true});return d};
-  const pr=seg("rise"),ps=seg("set");
+  const seg=f=>{let d="",on=false,py=0;data.forEach((v,i)=>{const mm=f(v);if(mm==null){on=false;return}const y=Yy(w24(mm));d+=(on&&Math.abs(y-py)<plotH/2?"L":"M")+(i*ppd).toFixed(1)+" "+y.toFixed(1);py=y;on=true});return d};
+  const pr=seg(v=>v.pol?null:v.rise),ps=seg(v=>v.pol?null:v.set),edge=(a,sg)=>seg(v=>{const h=tw(v,a);return h==null?null:v.noon+sg*h});
+  [[GA,GC],[BB,BC]].forEach(([a,c])=>[-1,1].forEach(sg=>{const d=edge(a,sg);h+=`<path d="${d}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="2.5"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1.5" stroke-dasharray="5 4"/>`}));
   h+=`<path d="${pr}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="5"/><path d="${ps}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="5"/>`;
   h+=`<path d="${pr}" fill="none" stroke="${RISE}" stroke-width="2.5"/><path d="${ps}" fill="none" stroke="${SET}" stroke-width="2.5"/>`;
   ext.forEach(m=>{const x=m.i*ppd,y=Yy(w24(m.val));h+=`<path class="dm" data-x="${x}" data-y="${y}" transform="translate(${x} ${y})" d="M0 -7L7 0L0 7L-7 0Z" fill="#fff" stroke="${m.k==="rise"?RISE:SET}" stroke-width="2.5"/>`});
@@ -264,7 +287,7 @@ function hover(ux,uy){
   $("hg").removeAttribute("display");
   $("hv").setAttribute("x1",sx);$("hv").setAttribute("x2",sx);$("hh").setAttribute("y1",uy);$("hh").setAttribute("y2",uy);
   $("h1").setAttribute("cx",sx);$("h1").setAttribute("cy",Yy(w24(v.rise)));$("h2").setAttribute("cx",sx);$("h2").setAttribute("cy",Yy(w24(v.set)));["h1","h2"].forEach(id=>v.pol?$(id).setAttribute("display","none"):$(id).removeAttribute("display"));
-  $("rdo").textContent=`${v.y}.${v.m+1}.${v.d} ${hm(mn)} · ${phaseL(al)} · 고도 ${al.toFixed(1)}° · ${rel(msOf(v,mn)).replace(/ \d+초/,"")}\n${dayTxt(v)}`;
+  $("rdo").textContent=`${v.y}.${v.m+1}.${v.d} ${hm(mn)} · ${phaseL(al)}${mhL(al)} · 고도 ${al.toFixed(1)}° · ${rel(msOf(v,mn)).replace(/ \d+초/,"")}\n${dayTxt(v)}`;
   showTip(ux,uy);
 }
 function clickAt(ux,uy){
@@ -340,7 +363,7 @@ function renderInfo(){
   const cell=r=>{const c0=col(r[2]),c1=col(r[3]),lum=(c0.concat(c1).reduce((a,x,j)=>a+x*[.299,.587,.114][j%3],0))/2/255;
     return `<span class="rw" style="background:linear-gradient(90deg,rgb(${c0.map(Math.round)}),rgb(${c1.map(Math.round)}));color:${lum<.5?"#fff":"#1b2030"}"><span>${r[0]}</span><b>${r[1]==null?"—":hm(r[1])}</b></span>`};
   const du=!v.pol&&C&&Nn&&A?`일출 전 어스름: 환한 ${Math.round(v.rise-C[0])}분 · 짙은 ${Math.round(v.rise-Nn[0])}분 · 깊은 ${Math.round(v.rise-A[0])}분`:"";
-  $("info").innerHTML=`<b>${v.y}년 ${v.m+1}월 ${v.d}일 ${hm(mn)}</b> · ${phaseL(al,mn<v.noon)}<br><span id="until">${rel(picked?picked.ms:msOf(v,mn))}</span> · 태양 고도 ${al.toFixed(1)}° · 가장 높은 때 ${hm(v.noon)} (${v.alt.toFixed(1)}°)<div class="rows">${[0,4,1,5,2,6,3,7].map(i=>cell(L[i])).join("")}</div><div class="cap"><span>${du}</span><span class="ver">v2.1</span></div>`;
+  $("info").innerHTML=`<b>${v.y}년 ${v.m+1}월 ${v.d}일 ${hm(mn)}</b> · ${phaseL(al,mn<v.noon)}${mhL(al)}<br><span id="until">${rel(picked?picked.ms:msOf(v,mn))}</span> · 태양 고도 ${al.toFixed(1)}° · 가장 높은 때 ${hm(v.noon)} (${v.alt.toFixed(1)}°)<div class="rows">${[0,4,1,5,2,6,3,7].map(i=>cell(L[i])).join("")}</div><div class="cap"><span>${du}</span><span class="ver">v2.2</span></div>`;
 }
 
 function tick(){
@@ -359,6 +382,13 @@ function tick(){
   for(let d=-1;d<400&&t==null;d++){const w=evE(e+d);if(w.pol)continue;const bb=w.e*864e5-w.off*6e4,r=bb+w.rise*6e4,sx=bb+w.set*6e4;if(!up&&r>now){lb="일출까지";t=r}else if(up&&sx>now){lb="일몰까지";t=sx}}
   $("lab").textContent=t==null?"해가 뜨고 지는 때가 없어요":lb;$("cd").textContent=t==null?"—":dur((t-now)/1000);
   $("note").textContent=(v.pol>0?"백야 · ":v.pol<0?"극야 · ":"")+(dstOff&&dstHas?"표준시 기준 · ":"")+(sim?"선택한 시점 기준 · ":"")+"현재 "+p2(k.getUTCHours())+":"+p2(k.getUTCMinutes())+":"+p2(k.getUTCSeconds());
+  /* 매직아워 */
+  const mg=magic(v),mn2=magicNow(e,now),mhE=$("mh");
+  $("rgd").textContent="골든아워 "+mhR(mg[1]);$("sgd").textContent="골든아워 "+mhR(mg[2]);
+  if(mn2){const cc=mn2.n==="골든아워"?GC:BC,lf=left((mn2.t-now)/1000);mhE.hidden=false;mhE.classList.toggle("on",mn2.on);mhE.style.background=mn2.on?cc:"";
+    mhE.innerHTML=mn2.on?`지금 ${mn2.n} · ${lf} 남음`:`<i style="background:${cc}"></i>${mn2.n}까지 ${lf}`}else mhE.hidden=true;
+  const mrow=m=>`<span><i style="background:${m[0]==="골든아워"?GC:BC}"></i>${m[0].slice(0,2)}<b>${mhR(m)}</b><em>${m[2]-m[1]<.5?"":Math.round(m[2]-m[1])+"분"}</em></span>`;
+  $("mg").innerHTML=`<span class="h">아침</span><span class="h">저녁</span>`+[0,2,1,3].map(j=>mrow(mg[j])).join("");
   /* 하늘색 */
   const al=altAt(v,tm),c=col(al),lum=(.299*c[0]+.587*c[1]+.114*c[2])/255,dk=lum<.5,rgb=`rgb(${c.map(Math.round)})`;
   document.documentElement.style.background=rgb;document.body.style.background=rgb;
@@ -367,7 +397,7 @@ function tick(){
   st.setProperty("--card",dk?"rgba(255,255,255,.1)":"rgba(255,255,255,.6)");st.setProperty("--line",dk?"rgba(255,255,255,.18)":"rgba(27,32,48,.14)");
   st.colorScheme=dk?"dark":"light";st.setProperty("--sheet",dk?"rgb(14,20,38)":"rgb(250,250,247)");
   $("avl").textContent=sim?"선택 시점 태양 고도":"현재 태양 고도";
-  $("av").textContent=al.toFixed(1)+"°";$("avd").textContent=phaseL(al,tm<v.noon);
+  $("av").textContent=al.toFixed(1)+"°";$("avd").textContent=phaseL(al,tm<v.noon)+mhL(al);
   let yr=ymemo.get(v.y);if(!yr){const a=[];for(let x=Date.UTC(v.y,0,1)/864e5;x<Date.UTC(v.y+1,0,1)/864e5;x++)a.push(evE(x).alt);yr=[Math.min(...a),Math.max(...a)];ymemo.set(v.y,yr)}
   const da=v.alt-ys.alt;$("nv").textContent=v.alt.toFixed(1)+"°";
   $("nvd").textContent=`가장 높은 때 ${hm(v.noon)} · 어제보다 ${Math.abs(da).toFixed(2)}° ${da>=0?"높음":"낮음"} · 그해 ${yr[0].toFixed(1)}°~${yr[1].toFixed(1)}°`;
